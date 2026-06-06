@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Carrito — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .cart-page{padding:48px 0 96px}
+  .cart-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:start}
+  @media (max-width:1024px){.cart-grid{grid-template-columns:1fr}}
+
+  .cart-items{display:flex;flex-direction:column;gap:16px}
+  .cart-item{display:grid;grid-template-columns:120px 1fr auto;gap:20px;padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--card);align-items:center}
+  @media (max-width:640px){.cart-item{grid-template-columns:80px 1fr}}
+  .ci-img{aspect-ratio:1;border-radius:12px;overflow:hidden}
+  .ci-info .ci-name{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em;line-height:1;margin:0 0 6px}
+  .ci-info .ci-meta{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.08em;text-transform:uppercase}
+  .ci-date{background:var(--bg-2);border:1px solid var(--line);padding:6px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-family:"JetBrains Mono";font-size:11px;color:var(--acid);letter-spacing:0.08em;position:relative;cursor:pointer;transition:border-color .15s}
+  .ci-date:hover{border-color:var(--acid)}
+  .ci-date.no-date{color:var(--ink-dim)}
+  .ci-date.no-date:hover{color:var(--acid)}
+  .ci-date .ci-date-caret{opacity:0.6;font-size:10px}
+  .ci-date .ci-date-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0}
+  /* estira el icono del calendario para que cubra todo el botón */
+  .ci-date .ci-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer}
+  .ci-actions{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+  @media (max-width:640px){
+    .cart-item{grid-template-columns:80px 1fr;grid-template-areas: "img info" "img actions";}
+    .ci-img{grid-area:img}
+    .ci-info{grid-area:info}
+    .ci-actions{grid-area:actions;align-items:flex-start;flex-direction:row;justify-content:space-between;width:100%;border-top:1px dashed var(--line);padding-top:12px;margin-top:4px}
+  }
+  .ci-price{font-family:"Archivo Black";font-size:22px;color:var(--acid);letter-spacing:-0.01em}
+  .qty-ctrl{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .qty-ctrl button{width:30px;height:30px;background:transparent;border:0;color:var(--ink);cursor:pointer;font-family:inherit;font-size:14px}
+  .qty-ctrl button:hover{background:var(--bg-2);color:var(--acid)}
+  .qty-ctrl input{width:36px;background:transparent;border:0;text-align:center;color:var(--ink);font-family:"JetBrains Mono";font-size:13px;outline:0;padding:0}
+  .ci-remove{background:transparent;border:0;color:var(--ink-dim);cursor:pointer;font-family:"JetBrains Mono";font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:4px;transition:color .15s}
+  .ci-remove:hover{color:var(--danger)}
+
+  .summary{position:sticky;top:120px;border:1px solid var(--line);border-radius:20px;padding:28px;background:var(--card)}
+  .summary h3{font-family:"Archivo Black";font-size:24px;letter-spacing:-0.01em;margin:0 0 18px;line-height:1}
+  .summary-row{display:flex;justify-content:space-between;padding:10px 0;font-size:14px;color:var(--ink-dim);border-bottom:1px dashed var(--line)}
+  .summary-row:last-of-type{border:0}
+  .summary-row strong{color:var(--ink);font-weight:500}
+  .summary-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+  .summary-total .lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase}
+  .summary-total .val{font-family:"Archivo Black";font-size:34px;color:var(--acid);letter-spacing:-0.02em}
+  .summary-abono{background:var(--magenta);color:#000;padding:14px 16px;border-radius:14px;margin:18px 0;display:flex;justify-content:space-between;align-items:baseline}
+  .summary-abono .lbl{font-family:"JetBrains Mono";font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:700}
+  .summary-abono .val{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em}
+  .summary .btn{width:100%;justify-content:center;margin-top:6px}
+  .summary .btn+.btn{margin-top:10px}
+  .summary-note{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center;margin-top:14px}
+
+  .empty-cart{padding:96px 24px;text-align:center;border:1px dashed var(--line);border-radius:24px}
+  .empty-cart h2{font-family:"Archivo Black";font-size:48px;letter-spacing:-0.02em;margin:0 0 12px;line-height:1}
+  .empty-cart p{color:var(--ink-dim);margin:0 0 28px}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">CARRITO</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Carrito</div>
+    <h1>Tu <span class="ital acid">fiesta</span> en construcción.</h1>
+    <p class="lead">Revisa los productos seleccionados, ajusta cantidades y avanza al checkout cuando estés listo.</p>
+  </div>
+</section>
+
+<section class="cart-page">
+  <div class="wrap">
+    <div id="cart-root"></div>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'catalogo'});
+
+  function ymd(d){
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear()+'-'+m+'-'+day;
+  }
+  // Cambiar la fecha de un item (fusiona si ya existe el mismo producto en esa fecha)
+  function setItemDate(id, oldDate, newDate){
+    const cart = PH.getCart();
+    const o = oldDate || null, n = newDate || null;
+    if(o === n) return;
+    const item = cart.find(c => c.id===id && (c.date||null)===o);
+    if(!item) return;
+    const dup = cart.find(c => c!==item && c.id===id && (c.date||null)===n);
+    if(dup){ dup.qty += item.qty; cart.splice(cart.indexOf(item),1); }
+    else { item.date = n; }
+    PH.saveCart(cart);
+  }
+
+  function render(){
+    const cart = PH.getCart();
+    const root = document.getElementById('cart-root');
+
+    const _today = new Date(); _today.setHours(0,0,0,0);
+    const _min = new Date(_today); _min.setDate(_min.getDate()+3);
+    const _max = new Date(_today); _max.setMonth(_max.getMonth()+4);
+    const minStr = ymd(_min), maxStr = ymd(_max);
+
+    if(cart.length === 0){
+      root.innerHTML = `
+        <div class="empty-cart">
+          <h2>Tu carrito está <span class="ital acid">vacío</span></h2>
+          <p>Agrega carpas, mobiliario, audio o juegos para armar tu fiesta.</p>
+          <a class="btn btn-primary" href="catalogo.html">Explorar Catálogo →</a>
+        </div>`;
+      return;
+    }
+
+    const items = cart.map(item => {
+      const p = PH.getProduct(item.id);
+      if(!p) return '';
+      const lineTotal = p.price * item.qty;
+      const dateLbl = item.date
+        ? '📅  ' + new Date(item.date+'T00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+        : '📅  Agregar fecha del evento';
+      return `
+        <div class="cart-item" data-id="${p.id}" data-date="${item.date || ''}">
+          <div class="ci-img">${PH.photo(p,{label:' '})}</div>
+          <div class="ci-info">
+            <div class="ci-name">${p.name}</div>
+            <div class="ci-meta">${p.categoryName} · ${p.size}</div>
+            <div class="ci-date ${item.date?'':'no-date'}" data-act="date" title="Elegir fecha del evento">
+              <span>${dateLbl}</span>
+              <span class="ci-date-caret">▾</span>
+              <input type="date" class="ci-date-input" value="${item.date || ''}" min="${minStr}" max="${maxStr}" />
+            </div>
+          </div>
+          <div class="ci-actions">
+            <div class="ci-price">${PH.formatCLP(lineTotal)}</div>
+            <div class="qty-ctrl">
+              <button data-act="dec">−</button>
+              <input type="text" value="${item.qty}" readonly />
+              <button data-act="inc">+</button>
+            </div>
+            <button class="ci-remove" data-act="remove">Eliminar</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    const subtotal = PH.cartTotal();
+    const abono = Math.round(subtotal * 0.5);
+    const noFechas = cart.filter(c => !c.date).length;
+
+    root.innerHTML = `
+      <div class="cart-grid">
+        <div class="cart-items">
+          ${items}
+          ${noFechas > 0 ? `<div style="padding:14px 18px;border:1px dashed var(--magenta);border-radius:12px;font-size:13px;color:var(--magenta);font-family:'JetBrains Mono';letter-spacing:0.05em">⚠ ${noFechas} producto${noFechas>1?'s':''} sin fecha. Tócale “Agregar fecha del evento” para elegirla.</div>` : ''}
+        </div>
+
+        <aside class="summary">
+          <h3>Resumen</h3>
+          <div class="summary-row"><span>Subtotal</span><strong>${PH.formatCLP(subtotal)}</strong></div>
+          <div class="summary-row"><span>Instalación</span><strong style="color:var(--acid)">Incluida</strong></div>
+          <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
+          <div class="summary-total">
+            <div class="lbl">// TOTAL</div>
+            <div class="val">${PH.formatCLP(subtotal)}</div>
+          </div>
+          <div class="summary-abono">
+            <div class="lbl">Abono para reservar (50%)</div>
+            <div class="val">${PH.formatCLP(abono)}</div>
+          </div>
+          <a class="btn btn-primary" href="checkout.html">Continuar a la reserva →</a>
+          <a class="btn btn-ghost" href="catalogo.html">Seguir armando →</a>
+          <div class="summary-note">El saldo restante se cancela el día del evento.</div>
+        </aside>
+      </div>`;
+
+    root.querySelectorAll('.cart-item').forEach(el => {
+      const id = el.dataset.id;
+      const date = el.dataset.date || null;
+      const dateChip = el.querySelector('.ci-date');
+      const dateInput = el.querySelector('.ci-date-input');
+      if(dateChip && dateInput){
+        const openPicker = () => { try { dateInput.showPicker(); } catch(e){} };
+        // En Chrome/Safari el indicador estirado abre el calendario; esto cubre Firefox.
+        dateInput.addEventListener('click', openPicker);
+        dateInput.addEventListener('change', () => {
+          setItemDate(id, date, dateInput.value || null);
+          if(dateInput.value) PH.toast('✓ Fecha agregada', 'success');
+        });
+      }
+      el.querySelector('[data-act="dec"]').addEventListener('click', () => {
+        const item = PH.getCart().find(c => c.id===id && c.date===date);
+        if(item && item.qty > 1){ PH.updateQty(id, date, item.qty-1); render(); }
+      });
+      el.querySelector('[data-act="inc"]').addEventListener('click', () => {
+        const item = PH.getCart().find(c => c.id===id && c.date===date);
+        if(item){ PH.updateQty(id, date, item.qty+1); render(); }
+      });
+      el.querySelector('[data-act="remove"]').addEventListener('click', () => {
+        PH.removeFromCart(id, date);
+        render();
+        PH.toast('Producto eliminado');
+      });
+    });
+  }
+
+  render();
+  window.addEventListener('ph:cart:change', render);
+</script>
+</body>
+</html>

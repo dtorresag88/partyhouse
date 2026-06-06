@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Reservar — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .checkout{padding:48px 0 96px}
+  .co-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:start}
+  @media (max-width:1024px){.co-grid{grid-template-columns:1fr}}
+
+  .co-steps{display:flex;gap:8px;margin-bottom:32px;flex-wrap:wrap}
+  .co-step{padding:10px 16px;border:1px solid var(--line);border-radius:999px;font-family:"JetBrains Mono";font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-dim);display:flex;align-items:center;gap:8px}
+  .co-step .n{width:20px;height:20px;border-radius:50%;background:var(--bg-2);display:grid;place-items:center;font-weight:700;font-size:10px}
+  .co-step.active{border-color:var(--acid);color:var(--ink)}
+  .co-step.active .n{background:var(--acid);color:#000}
+  .co-step.done{border-color:var(--success);color:var(--ink)}
+  .co-step.done .n{background:var(--success);color:#000}
+
+  .co-section{border:1px solid var(--line);border-radius:18px;padding:26px;background:var(--card);margin-bottom:18px}
+  .co-section h3{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em;margin:0 0 6px;line-height:1;display:flex;align-items:center;gap:12px}
+  .co-section h3 .n{font-family:"JetBrains Mono";font-size:13px;color:var(--acid);background:transparent;border:1px solid var(--acid);width:28px;height:28px;border-radius:50%;display:grid;place-items:center}
+  .co-section .co-hint{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.05em;margin:0 0 20px;padding-left:40px}
+
+  .wa-note{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border:1px dashed var(--line);border-radius:14px;background:rgba(37,211,102,0.05);font-size:13px;color:var(--ink-dim);line-height:1.55;margin-bottom:18px}
+  .wa-note .wa-ico{width:38px;height:38px;border-radius:50%;background:#25D366;color:#000;display:grid;place-items:center;font-weight:900;font-size:18px;flex-shrink:0}
+  .wa-note strong{color:var(--ink)}
+
+  .btn-wa{background:#25D366!important;color:#0a3d1c!important}
+  .btn-wa:hover{background:#1fc15c!important}
+
+  /* Summary */
+  .summary{position:sticky;top:120px;border:1px solid var(--line);border-radius:20px;padding:28px;background:var(--card)}
+  .summary h3{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em;margin:0 0 18px;line-height:1}
+  .sum-items{display:flex;flex-direction:column;gap:12px;padding-bottom:18px;border-bottom:1px dashed var(--line);margin-bottom:18px;max-height:280px;overflow-y:auto}
+  .sum-item{display:flex;gap:12px;align-items:center;font-size:13px}
+  .sum-item-img{width:42px;height:42px;border-radius:8px;overflow:hidden;flex-shrink:0}
+  .sum-item-info{flex:1;min-width:0}
+  .sum-item-name{font-weight:600;line-height:1.2}
+  .sum-item-meta{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;margin-top:2px}
+  .sum-item-price{font-family:"Archivo Black";font-size:14px;color:var(--acid);white-space:nowrap}
+  .summary-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--ink-dim)}
+  .summary-row strong{color:var(--ink);font-weight:500}
+  .summary-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .summary-total .lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase}
+  .summary-total .val{font-family:"Archivo Black";font-size:24px;color:var(--acid);letter-spacing:-0.02em}
+  .summary-abono{background:var(--magenta);color:#000;padding:12px 14px;border-radius:12px;margin:14px 0;display:flex;justify-content:space-between;align-items:baseline}
+  .summary-abono .lbl{font-family:"JetBrains Mono";font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:700}
+  .summary-abono .val{font-family:"Archivo Black";font-size:18px;letter-spacing:-0.01em}
+
+  .empty-co{padding:96px 24px;text-align:center;border:1px dashed var(--line);border-radius:24px}
+  .empty-co h2{font-family:"Archivo Black";font-size:40px;margin:0 0 12px}
+
+  /* WhatsApp confirm modal */
+  .wa-modal{position:fixed;inset:0;background:rgba(12,10,20,0.95);backdrop-filter:blur(20px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+  .wa-modal.show{display:flex}
+  .wa-card{max-width:480px;border:1px solid #25D366;border-radius:24px;padding:44px 34px;background:var(--bg-2);text-align:center}
+  .wa-card .wa-big{width:78px;height:78px;border-radius:50%;background:#25D366;color:#0a3d1c;font-size:38px;display:grid;place-items:center;margin:0 auto 22px;font-weight:900}
+  .wa-card h2{font-family:"Archivo Black";font-size:32px;letter-spacing:-0.02em;margin:0 0 10px;line-height:1}
+  .wa-card p{color:var(--ink-dim);margin:0 0 24px;font-size:14px;line-height:1.5}
+  .wa-card .btn{width:100%;justify-content:center}
+  .wa-card .btn+.btn{margin-top:10px}
+  .wa-card .wa-close{background:transparent;border:0;color:var(--ink-dim);cursor:pointer;font-family:"JetBrains Mono";font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-top:6px;padding:8px}
+  .wa-card .wa-close:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">RESERVA</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / <a href="carrito.html">Carrito</a> / Reservar</div>
+    <h1>Reserva tu <span class="ital acid">fiesta.</span></h1>
+    <p class="lead">Déjanos tus datos y te llevamos a WhatsApp con tu pedido listo. Confirmamos disponibilidad y coordinamos la instalación en menos de 24 horas.</p>
+  </div>
+</section>
+
+<section class="checkout">
+  <div class="wrap">
+    <div id="co-root"></div>
+  </div>
+</section>
+
+<div class="wa-modal" id="wa-modal">
+  <div class="wa-card">
+    <div class="wa-big"></div>
+    <h2>¡Casi listo!</h2>
+    <p>Tu pedido está armado. Toca el botón para abrir WhatsApp con todo escrito y enviarnos tu reserva.</p>
+    <a class="btn btn-wa" id="wa-go" href="#" target="_blank" rel="noopener">Abrir WhatsApp →</a>
+    <button class="wa-close" id="wa-close" type="button">Volver a editar mis datos</button>
+  </div>
+</div>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'catalogo'});
+
+  const COMUNAS = ['Las Condes','La Reina','Lo Barnechea','Vitacura','Ñuñoa','Providencia','Peñalolén','Macul','La Florida','Maipú','Colina / Chicureo','Padre Hurtado','Talagante','Otra (Región Metropolitana)'];
+
+  function render(){
+    const cart = PH.getCart();
+    const root = document.getElementById('co-root');
+
+    if(cart.length === 0){
+      root.innerHTML = `
+        <div class="empty-co">
+          <h2>Tu carrito está <span class="ital acid">vacío</span></h2>
+          <p style="color:var(--ink-dim)">Agrega productos antes de reservar.</p>
+          <a class="btn btn-primary" href="catalogo.html">Ir al Catálogo →</a>
+        </div>`;
+      return;
+    }
+
+    const subtotal = PH.cartTotal();
+    const abono = Math.round(subtotal * 0.5);
+
+    const items = cart.map(item => {
+      const p = PH.getProduct(item.id);
+      if(!p) return '';
+      const dateLbl = item.date
+        ? new Date(item.date+'T00:00').toLocaleDateString('es-CL',{day:'numeric',month:'short'})
+        : 'Sin fecha';
+      return `
+        <div class="sum-item">
+          <div class="sum-item-img">${PH.photo(p,{label:' '})}</div>
+          <div class="sum-item-info">
+            <div class="sum-item-name">${p.name}</div>
+            <div class="sum-item-meta">${dateLbl} · x${item.qty}</div>
+          </div>
+          <div class="sum-item-price">${PH.formatCLP(p.price * item.qty)}</div>
+        </div>`;
+    }).join('');
+
+    const comunaOpts = ['<option value="">Selecciona...</option>']
+      .concat(COMUNAS.map(c => `<option>${c}</option>`)).join('');
+
+    root.innerHTML = `
+      <div class="co-steps">
+        <div class="co-step done"><span class="n">✓</span> Carrito</div>
+        <div class="co-step active"><span class="n">2</span> Tus datos</div>
+        <div class="co-step"><span class="n">3</span> WhatsApp</div>
+      </div>
+
+      <div class="co-grid">
+        <form id="co-form" novalidate>
+          <div class="wa-note">
+            <div class="wa-ico"></div>
+            <div>Al reservar te abrimos una conversación de <strong>WhatsApp</strong> con todo tu pedido y tus datos ya escritos. Solo nos confirmas la fecha y el <strong>abono del 50%</strong> para asegurar tu día.</div>
+          </div>
+
+          <div class="co-section">
+            <h3><span class="n">1</span> Tus datos</h3>
+            <p class="co-hint">// Con esto coordinamos tu reserva</p>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Nombre completo</label>
+                <input type="text" name="name" required minlength="2" placeholder="Tu nombre" />
+                <span class="err-msg">Ingresa tu nombre</span>
+              </div>
+              <div class="form-field">
+                <label>Teléfono</label>
+                <input type="tel" name="phone" required placeholder="+56 9 ..." />
+                <span class="err-msg">Teléfono inválido</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Email</label>
+                <input type="email" name="email" required placeholder="tu@email.com" />
+                <span class="err-msg">Email inválido</span>
+              </div>
+              <div class="form-field">
+                <label>Comuna del evento</label>
+                <select name="comuna" required>${comunaOpts}</select>
+                <span class="err-msg">Selecciona comuna</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Comentarios (opcional)</label>
+              <textarea name="notes" placeholder="Fecha del evento, dirección, accesos, alguna instrucción..."></textarea>
+            </div>
+          </div>
+
+          <div style="padding:14px 16px;border:1px dashed var(--line);border-radius:12px;font-size:13px;color:var(--ink-dim);line-height:1.5;margin-bottom:18px">
+            <strong style="color:var(--ink)">¿Cómo funciona?</strong><br/>
+            Reservas con el <strong style="color:var(--acid)">50% de abono</strong> (${PH.formatCLP(abono)}). El saldo restante (${PH.formatCLP(subtotal-abono)}) se cancela el día del evento, antes de la instalación.<br/>
+            <span style="color:var(--ink)">+ Costo de transporte</span> según la comuna del evento (te lo confirmamos por WhatsApp).
+          </div>
+
+          <button type="submit" class="btn btn-wa btn-block" style="padding:18px;font-size:16px">
+            Reservar por WhatsApp →
+          </button>
+        </form>
+
+        <aside class="summary">
+          <h3>Tu reserva</h3>
+          <div class="sum-items">${items}</div>
+          <div class="summary-row"><span>Subtotal</span><strong>${PH.formatCLP(subtotal)}</strong></div>
+          <div class="summary-row"><span>Instalación</span><strong style="color:var(--acid)">Gratis</strong></div>
+          <div class="summary-row"><span>Transporte</span><strong>Según comuna</strong></div>
+          <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
+          <div class="summary-total">
+            <div class="lbl">// TOTAL</div>
+            <div class="val">${PH.formatCLP(subtotal)}</div>
+          </div>
+          <div class="summary-abono">
+            <div class="lbl">Abono para reservar (50%)</div>
+            <div class="val">${PH.formatCLP(abono)}</div>
+          </div>
+          <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (${PH.formatCLP(subtotal-abono)}) se paga el día del evento</div>
+        </aside>
+      </div>`;
+
+    // Form submit → build WhatsApp message
+    document.getElementById('co-form').addEventListener('submit', e => {
+      e.preventDefault();
+      if(!validate()){ PH.toast('Revisa los campos marcados','error'); return; }
+
+      const form = e.target;
+      const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
+      const name = get('name'), phone = get('phone'), email = get('email'), comuna = get('comuna'), notes = get('notes');
+
+      const curCart = PH.getCart();
+      const lines = curCart.map(item => {
+        const p = PH.getProduct(item.id);
+        if(!p) return '';
+        const d = item.date
+          ? new Date(item.date+'T00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short',year:'numeric'})
+          : 'sin fecha';
+        return `• ${p.name} (${p.size}) x${item.qty} — ${PH.formatCLP(p.price*item.qty)} — 📅 ${d}`;
+      }).filter(Boolean).join('\n');
+
+      const sub = PH.cartTotal();
+      const ab = Math.round(sub*0.5);
+
+      const msg =
+`¡Hola Party House! 🎉 Quiero reservar:
+
+${lines}
+
+Subtotal: ${PH.formatCLP(sub)}
+Abono 50%: ${PH.formatCLP(ab)}
+Saldo el día del evento: ${PH.formatCLP(sub-ab)}
+
+— Mis datos —
+Nombre: ${name}
+Teléfono: ${phone}
+Email: ${email}
+Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
+
+      PH.toast('✓ Pedido listo', 'success');
+      const link = PH.waLink(msg);
+      const go = document.getElementById('wa-go');
+      go.href = link;
+      document.getElementById('wa-modal').classList.add('show');
+    });
+  }
+
+  function validate(){
+    const form = document.getElementById('co-form');
+    let valid = true;
+    form.querySelectorAll('.form-field').forEach(wrap => {
+      wrap.classList.remove('error');
+      const f = wrap.querySelector('input, textarea, select');
+      if(!f || f.name === 'notes') return;
+      const v = (f.value || '').trim();
+      if(f.name === 'name' && v.length < 2){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'phone' && !/^[\d\s+()-]{7,}$/.test(v)){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'comuna' && !v){ wrap.classList.add('error'); valid=false; }
+    });
+    return valid;
+  }
+
+  render();
+  window.addEventListener('ph:cart:change', render);
+
+  // WhatsApp modal close
+  document.getElementById('wa-close').addEventListener('click', () => {
+    document.getElementById('wa-modal').classList.remove('show');
+  });
+  document.getElementById('wa-modal').addEventListener('click', e => {
+    if(e.target.id === 'wa-modal') e.currentTarget.classList.remove('show');
+  });
+</script>
+</body>
+</html>

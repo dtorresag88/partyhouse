@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Packs — Party House</title>
+<meta name="description" content="Elige tu experiencia: Basic Party, VIP Lounge o Full Production. Packs todo incluido para tu fiesta, con montaje y desmontaje." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .packs{padding:56px 0 96px}
+  .packs-note{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:14px;padding:16px 20px;background:var(--card);margin-bottom:40px;font-size:14px;color:var(--ink-dim);line-height:1.5}
+  .packs-note .ico{width:38px;height:38px;border-radius:50%;background:var(--cyan);color:#000;display:grid;place-items:center;font-weight:900;font-size:18px;flex-shrink:0}
+  .packs-note strong{color:var(--ink)}
+
+  .pack-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start}
+  @media (max-width:1024px){.pack-grid{grid-template-columns:1fr;max-width:520px;margin:0 auto}}
+
+  .pack{border:1px solid var(--line);border-radius:24px;background:var(--card);overflow:hidden;display:flex;flex-direction:column;position:relative;transition:transform .25s,border-color .25s}
+  .pack:hover{transform:translateY(-4px);border-color:var(--ink)}
+  .pack.featured{border-color:var(--acid);background:linear-gradient(180deg,rgba(232,255,58,0.06),var(--card) 220px)}
+  .pack.featured:hover{transform:translateY(-8px)}
+  @media (min-width:1025px){.pack.featured{transform:translateY(-16px)}.pack.featured:hover{transform:translateY(-22px)}}
+
+  .pack-ribbon{position:absolute;top:18px;right:18px;background:linear-gradient(135deg,var(--orange),var(--magenta));color:#000;font-family:"Archivo Black";font-size:10px;letter-spacing:0.1em;padding:7px 12px;border-radius:999px;z-index:3;transform:rotate(3deg);box-shadow:0 6px 16px rgba(255,61,166,0.3)}
+
+  .pack-head{padding:32px 28px 24px;border-bottom:1px solid var(--line);position:relative}
+  .pack.featured .pack-head{border-bottom-color:rgba(232,255,58,0.25)}
+  .pack-n{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);letter-spacing:0.2em}
+  .pack.featured .pack-n{color:#9aac20}
+  .pack-name{font-family:"Archivo Black";font-size:34px;line-height:0.92;letter-spacing:-0.03em;margin:10px 0 0}
+  .pack-disc{display:inline-block;margin-top:12px;font-family:"JetBrains Mono";font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:5px 10px;border-radius:6px;background:var(--magenta);color:#000}
+  .pack.featured .pack-disc{background:#000;color:var(--acid)}
+  .pack-disc.none{background:transparent;color:var(--ink-dim);border:1px solid var(--line);padding:5px 10px}
+
+  .pack-body{padding:26px 28px;flex:1}
+  .pack-incl-label{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+  .pack-incl-label .plus-tag{background:var(--acid);color:#000;font-weight:700;padding:2px 7px;border-radius:4px;font-size:10px}
+  .pack.featured .pack-incl-label .plus-tag{background:#000;color:var(--acid)}
+
+  .feat-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:16px}
+  .feat{display:flex;gap:12px;align-items:flex-start}
+  .feat .fico{width:26px;height:26px;border-radius:8px;background:var(--bg-2);display:grid;place-items:center;font-size:13px;flex-shrink:0;border:1px solid var(--line)}
+  .pack.featured .feat .fico{background:rgba(0,0,0,0.25);border-color:rgba(0,0,0,0.2)}
+  .feat-txt{font-size:14px;line-height:1.45}
+  .feat-txt b{font-family:"Archivo Black";font-weight:400;font-size:14.5px;letter-spacing:-0.01em}
+  .feat-txt .sub{color:var(--ink-dim);display:block;margin-top:2px;font-size:13px}
+  .feat-txt .sub-item{color:var(--ink-dim);font-size:13px;display:flex;gap:7px;margin-top:4px}
+  .feat-txt .sub-item::before{content:"–";color:var(--acid)}
+
+  .pack-prices{padding:24px 28px 28px;border-top:1px dashed var(--line);background:rgba(0,0,0,0.12)}
+  .pack-prices-label{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:16px}
+  .price-tier{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0}
+  .price-tier+.price-tier{border-top:1px solid var(--line)}
+  .pt-amount{font-family:"Archivo Black";font-size:34px;letter-spacing:-0.025em;line-height:1}
+  .pack.featured .pt-amount{color:var(--acid)}
+  .pt-size{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.08em;text-transform:uppercase;text-align:right}
+  .pack-cta{padding:0 28px 30px;display:flex;flex-direction:column;gap:10px}
+  .pack-cta .btn{width:100%;justify-content:center}
+
+  .packs-foot{margin-top:56px;border:1px dashed var(--acid);border-radius:24px;padding:44px 36px;text-align:center;background:rgba(232,255,58,0.04)}
+  .packs-foot h3{font-family:"Archivo Black";font-size:clamp(28px,4vw,48px);letter-spacing:-0.02em;line-height:0.95;margin:0 auto 14px;max-width:20ch}
+  .packs-foot p{color:var(--ink-dim);font-size:16px;line-height:1.55;margin:0 auto 26px;max-width:54ch}
+  .packs-foot .btn{margin:0 auto}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">PACKS</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Packs</div>
+    <h1>Elige tu <span class="ital acid">experiencia.</span></h1>
+    <p class="lead">Valores por noche. Incluyen montaje y desmontaje. El valor del transporte dependerá de la comuna donde se realice el evento.</p>
+  </div>
+</section>
+
+<section class="packs">
+  <div class="wrap">
+
+    <div class="packs-note">
+      <div class="ico">★</div>
+      <div>Tres niveles, todo incluido. Cada pack viene listo para prender — solo eliges el tamaño de carpa según cuánta gente invitas. <strong>¿Quieres algo a medida? Te lo armamos.</strong></div>
+    </div>
+
+    <div class="pack-grid">
+
+      <!-- ============ BASIC ============ -->
+      <article class="pack">
+        <div class="pack-head">
+          <div class="pack-n">// PACK 01</div>
+          <h2 class="pack-name">Basic<br/>Party</h2>
+          <span class="pack-disc none">Precio base</span>
+        </div>
+        <div class="pack-body">
+          <div class="pack-incl-label">// Incluye</div>
+          <ul class="feat-list">
+            <li class="feat">
+              <div class="fico">⛺</div>
+              <div class="feat-txt"><b>Carpa negra inflable</b><span class="sub">Estilo disco, lista para la pista</span></div>
+            </li>
+            <li class="feat">
+              <div class="fico">🔊</div>
+              <div class="feat-txt"><b>1 Parlante</b><span class="sub">Bluetooth / AUX</span></div>
+            </li>
+            <li class="feat">
+              <div class="fico">💡</div>
+              <div class="feat-txt"><b>Iluminación base</b><span class="sub">2 láser + 2 luces de colores</span></div>
+            </li>
+            <li class="feat">
+              <div class="fico">🌫️</div>
+              <div class="feat-txt"><b>Máquina de humo</b></div>
+            </li>
+          </ul>
+        </div>
+        <div class="pack-prices">
+          <div class="pack-prices-label">Precios</div>
+          <div class="price-tier">
+            <div class="pt-amount">$165.000</div>
+            <div class="pt-size">Carpa<br/>5×5 mts</div>
+          </div>
+          <div class="price-tier">
+            <div class="pt-amount">$260.000</div>
+            <div class="pt-size">Carpa<br/>5×8 mts</div>
+          </div>
+        </div>
+        <div class="pack-cta">
+          <a class="btn btn-primary" data-pack="Basic Party" target="_blank" rel="noopener">Reservar este pack →</a>
+        </div>
+      </article>
+
+      <!-- ============ VIP LOUNGE (featured) ============ -->
+      <article class="pack featured">
+        <div class="pack-ribbon">★ BEST SELLER</div>
+        <div class="pack-head">
+          <div class="pack-n">// PACK 02</div>
+          <h2 class="pack-name">VIP<br/>Lounge</h2>
+          <span class="pack-disc">15% Dscto</span>
+        </div>
+        <div class="pack-body">
+          <div class="pack-incl-label"><span class="plus-tag">+ TODO BASIC</span> y además</div>
+          <ul class="feat-list">
+            <li class="feat">
+              <div class="fico">🟢</div>
+              <div class="feat-txt"><b>Alfombra</b><span class="sub">Pasto sintético</span></div>
+            </li>
+            <li class="feat">
+              <div class="fico">🪑</div>
+              <div class="feat-txt"><b>Set mobiliario LED</b>
+                <span class="sub-item">2 mesas bar</span>
+                <span class="sub-item">4 cubos LED (asiento / mesa)</span>
+              </div>
+            </li>
+            <li class="feat">
+              <div class="fico">💡</div>
+              <div class="feat-txt"><b>Upgrade iluminación</b><span class="sub">4 focos UV para efecto fluor</span></div>
+            </li>
+          </ul>
+        </div>
+        <div class="pack-prices">
+          <div class="pack-prices-label">Precios</div>
+          <div class="price-tier">
+            <div class="pt-amount">$245.000</div>
+            <div class="pt-size">Carpa<br/>5×5 mts</div>
+          </div>
+          <div class="price-tier">
+            <div class="pt-amount">$330.000</div>
+            <div class="pt-size">Carpa<br/>5×8 mts</div>
+          </div>
+        </div>
+        <div class="pack-cta">
+          <a class="btn btn-primary" data-pack="VIP Lounge" target="_blank" rel="noopener">Reservar este pack →</a>
+        </div>
+      </article>
+
+      <!-- ============ FULL PRODUCTION ============ -->
+      <article class="pack">
+        <div class="pack-head">
+          <div class="pack-n">// PACK 03</div>
+          <h2 class="pack-name">Full<br/>Production</h2>
+          <span class="pack-disc">20% Dscto</span>
+        </div>
+        <div class="pack-body">
+          <div class="pack-incl-label"><span class="plus-tag">+ TODO VIP</span> y además</div>
+          <ul class="feat-list">
+            <li class="feat">
+              <div class="fico">🎤</div>
+              <div class="feat-txt"><b>Zona karaoke</b>
+                <span class="sub-item">Proyector HD + telón 80"</span>
+                <span class="sub-item">2 micrófonos inalámbricos</span>
+              </div>
+            </li>
+            <li class="feat">
+              <div class="fico">🍺</div>
+              <div class="feat-txt"><b>Alcohol station</b><span class="sub">Máquina schop o sour granizado (a elección)</span></div>
+            </li>
+            <li class="feat">
+              <div class="fico">🎮</div>
+              <div class="feat-txt"><b>Party game</b><span class="sub">Jenga gigante o beerpong (a elección)</span></div>
+            </li>
+          </ul>
+        </div>
+        <div class="pack-prices">
+          <div class="pack-prices-label">Precios</div>
+          <div class="price-tier">
+            <div class="pt-amount">$355.000</div>
+            <div class="pt-size">Carpa<br/>5×5 mts</div>
+          </div>
+          <div class="price-tier">
+            <div class="pt-amount">$430.000</div>
+            <div class="pt-size">Carpa<br/>5×8 mts</div>
+          </div>
+        </div>
+        <div class="pack-cta">
+          <a class="btn btn-primary" data-pack="Full Production" target="_blank" rel="noopener">Reservar este pack →</a>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="packs-foot">
+      <h3>¿Prefieres armar un pack <span class="ital acid">a tu medida?</span></h3>
+      <p>¡También podemos hacerlo! Háblanos por WhatsApp, nos cuentas lo que quieres y te armamos un pack con un descuento especial.</p>
+      <a class="btn btn-magenta" href="https://wa.me/56937363825?text=%C2%A1Hola%20Party%20House!%20Quiero%20armar%20un%20pack%20a%20mi%20medida%20para%20mi%20fiesta%20%F0%9F%8E%89" target="_blank" rel="noopener">Armar mi pack por WhatsApp →</a>
+    </div>
+
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'packs'});
+
+  // Wire pack reserve buttons → prefilled WhatsApp
+  document.querySelectorAll('[data-pack]').forEach(btn => {
+    const name = btn.dataset.pack;
+    const msg = '¡Hola Party House! Quiero reservar el pack ' + name + '. ¿Me cuentas disponibilidad y cómo seguir? 🎉';
+    btn.href = PH.waLink(msg);
+  });
+</script>
+</body>
+</html>

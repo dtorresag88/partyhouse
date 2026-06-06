@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Party House — Arriendo de carpas, mobiliario LED y audio</title>
+<meta name="description" content="Arriendo de carpas disco inflables, mobiliario LED, audio y juegos para fiestas en casa. Arma tu celebración fácil, rápida y épica." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  /* Home-specific */
+  .hero{position:relative;padding:80px 0 60px;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:48px;align-items:start}
+  .eyebrow{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.15em;display:flex;align-items:center;gap:10px;margin-bottom:24px}
+  .eyebrow .pill{background:var(--magenta);color:#000;padding:3px 8px;border-radius:4px;font-weight:700}
+  .hero h1{font-family:"Archivo Black";font-size:clamp(51px,7.2vw,118px);line-height:0.82;letter-spacing:-0.035em;margin:0}
+  .hero h1 .stroke{-webkit-text-stroke:2px var(--ink);color:transparent}
+  .hero-sub{margin-top:32px;max-width:560px;font-size:18px;line-height:1.5;color:var(--ink-dim)}
+  .hero-sub strong{color:var(--ink);font-weight:600}
+  .hero-cta{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap}
+  .hero-right{position:relative;height:560px;margin-top:42px}
+  .hero-card{position:absolute;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--bg-2);box-shadow:0 30px 60px -20px rgba(0,0,0,0.5)}
+  .hero-card.a{top:0;left:0;width:78%;height:62%;transform:rotate(-3deg)}
+  .hero-card.b{bottom:0;right:0;width:62%;height:54%;transform:rotate(4deg);z-index:2}
+  .hero-card.c{top:38%;right:8%;width:38%;height:34%;transform:rotate(-8deg);z-index:3;background:var(--magenta);color:#000;display:grid;place-items:center;text-align:center;padding:20px}
+  .hero-card.c .display{font-size:34px}
+  .hero-card.video{top:50%;left:50%;width:94%;height:96%;transform:translate(-50%,-50%) rotate(-2deg)}
+  .hero-card video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .hero-tag{position:absolute;bottom:-14px;left:24px;background:#000;border:1px solid var(--line);padding:8px 14px;border-radius:999px;font-family:"JetBrains Mono";font-size:11px;color:var(--acid);z-index:5}
+  .stat-row{display:flex;gap:8px;margin-top:48px;flex-wrap:wrap}
+  .stat{padding:14px 18px;border:1px solid var(--line);border-radius:14px;min-width:140px}
+  .stat .n{font-family:"Archivo Black";font-size:28px;line-height:1}
+  .stat .l{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.1em;margin-top:6px}
+
+  .tents{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .tent{border:1px solid var(--line);border-radius:24px;overflow:hidden;background:var(--card);display:flex;flex-direction:column;position:relative;transition:transform .25s,border-color .25s}
+  .tent:hover{transform:translateY(-4px);border-color:var(--acid)}
+  .tent-img{aspect-ratio:5/4;position:relative;overflow:hidden}
+  .tent-badges{position:absolute;top:16px;left:16px;display:flex;gap:6px;flex-wrap:wrap;z-index:2}
+  .tent-body{padding:24px 24px 28px;display:flex;flex-direction:column;gap:14px}
+  .tent-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .tent-title{font-family:"Archivo Black";font-size:32px;letter-spacing:-0.02em;line-height:1}
+  .tent-size{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);margin-top:6px;letter-spacing:0.1em;text-transform:uppercase}
+  .tent-price{text-align:right;line-height:1}
+  .tent-price .now{font-family:"Archivo Black";font-size:28px;color:var(--acid)}
+  .tent-price .was{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);text-decoration:line-through;margin-top:6px;display:block}
+  .tent-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px dashed var(--line);padding-top:14px;margin-top:4px}
+  .tent-meta div{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .tent-meta div::before{content:"";width:6px;height:6px;background:var(--acid);border-radius:50%}
+  .tent-actions{display:flex;gap:10px;margin-top:4px}
+  .tent-actions a.reserve{flex:1;padding:14px;background:var(--ink);color:#000;border:0;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;letter-spacing:0.02em;transition:background .15s;text-align:center}
+  .tent-actions a.reserve:hover{background:var(--acid)}
+  .tent-actions a.detail-btn{padding:14px 16px;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center}
+
+  .cats{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;grid-auto-rows:220px}
+  .cat{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:var(--card);padding:24px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:transform .25s;color:var(--ink)}
+  .cat:hover{transform:translateY(-3px)}
+  .cat-1{grid-column:span 7;grid-row:span 2}
+  .cat-2{grid-column:span 5}
+  .cat-3{grid-column:span 5}
+  .cat-4{grid-column:span 7}
+  .cat-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+  .cat-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  .cat-bg::before{content:"";position:absolute;inset:0;z-index:1;mix-blend-mode:multiply;opacity:0.45}
+  .cat-bg::after{content:"";position:absolute;inset:0;z-index:2;background:linear-gradient(180deg,rgba(8,6,14,0.10) 0%,rgba(8,6,14,0.04) 38%,rgba(8,6,14,0.86) 100%)}
+  .cat-content{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;height:100%;text-shadow:0 1px 12px rgba(0,0,0,0.55)}
+  .cat-num{font-family:"JetBrains Mono";font-size:11px;letter-spacing:0.2em;opacity:0.7}
+  .cat-title{font-family:"Archivo Black";font-size:44px;line-height:0.9;letter-spacing:-0.02em}
+  .cat-desc{font-size:14px;line-height:1.5;max-width:36ch;margin-top:8px}
+  .cat-cta{display:inline-flex;align-items:center;gap:8px;font-family:"JetBrains Mono";font-size:12px;letter-spacing:0.1em;text-transform:uppercase;margin-top:14px}
+  .cat-cta .arrow{width:28px;height:28px;border-radius:50%;background:#000;color:#fff;display:grid;place-items:center;font-size:14px}
+  .cat-1 .cat-bg::before{background:linear-gradient(135deg,var(--magenta),#7a1a55)}
+  .cat-1 .cat-cta .arrow{background:#0c0a14;color:var(--magenta)}
+  .cat-2 .cat-bg::before{background:linear-gradient(160deg,var(--acid),#9aac20)}
+  .cat-2 .cat-cta .arrow{background:#0c0a14;color:var(--acid)}
+  .cat-3 .cat-bg::before{background:linear-gradient(140deg,var(--cyan),#1c8175)}
+  .cat-3 .cat-cta .arrow{background:#0c0a14;color:var(--cyan)}
+  .cat-4 .cat-bg::before{background:linear-gradient(150deg,var(--orange),#a64a17)}
+  .cat-4 .cat-cta .arrow{background:#0c0a14;color:var(--orange)}
+  .cat-icon{display:none}
+  .cat-1 .cat-icon{font-size:120px;opacity:0.18}
+
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .step{padding:32px 24px;border-right:1px solid var(--line);position:relative}
+  .step:last-child{border-right:0}
+  .step-n{font-family:"Archivo Black";font-size:80px;line-height:0.8;letter-spacing:-0.04em;-webkit-text-stroke:1px var(--acid);color:transparent}
+  .step h4{font-family:"Archivo Black";font-size:22px;margin:24px 0 8px;letter-spacing:-0.01em}
+  .step p{color:var(--ink-dim);font-size:14px;line-height:1.5;margin:0}
+
+  .gallery{display:grid;grid-template-columns:repeat(8,1fr);gap:12px;grid-auto-rows:140px}
+  .gimg{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .gimg .photo{font-size:10px}
+  .gimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .gimg .loc{position:absolute;left:10px;bottom:10px;font-family:"JetBrains Mono";font-size:10px;color:#fff;background:rgba(0,0,0,0.6);padding:4px 8px;border-radius:4px;letter-spacing:0.08em;z-index:2;backdrop-filter:blur(4px)}
+  .gimg .date{position:absolute;right:10px;top:10px;font-family:"JetBrains Mono";font-size:9px;color:var(--acid);background:rgba(0,0,0,0.7);padding:3px 7px;border-radius:4px;letter-spacing:0.08em;z-index:2}
+  .g1{grid-column:span 3;grid-row:span 2}
+  .g2{grid-column:span 2}
+  .g3{grid-column:span 3;grid-row:span 2}
+  .g4{grid-column:span 2}
+  .g5{grid-column:span 2;grid-row:span 2}
+  .g6{grid-column:span 2}
+  .g7{grid-column:span 3}
+  .g8{grid-column:span 3}
+
+  .cta-band{background:var(--acid);color:#000;padding:80px 0;text-align:center;position:relative;overflow:hidden}
+  .cta-band::before,.cta-band::after{content:"PARTY HOUSE • PARTY HOUSE • PARTY HOUSE • PARTY HOUSE • ";position:absolute;font-family:"Archivo Black";font-size:14px;letter-spacing:0.3em;white-space:nowrap;color:#000;opacity:0.4}
+  .cta-band::before{top:14px;left:0;right:0}
+  .cta-band::after{bottom:14px;left:0;right:0}
+  .cta-band h3{font-family:"Archivo Black";font-size:clamp(40px,7vw,108px);line-height:0.88;letter-spacing:-0.035em;margin:0 auto;max-width:14ch}
+  .cta-band p{margin:24px auto 32px;max-width:520px;font-size:17px;font-weight:500}
+  .cta-band .btn{background:#0c0a14;color:var(--acid)}
+
+  @media (max-width:1024px){
+    .hero-grid{grid-template-columns:1fr;gap:64px}
+    .hero-right{height:440px;margin-top:0}
+    .tents{grid-template-columns:1fr}
+    .cats{grid-auto-rows:auto}
+    .cat-1,.cat-2,.cat-3,.cat-4{grid-column:span 12;min-height:220px}
+    .steps{grid-template-columns:1fr 1fr}
+    .step:nth-child(2){border-right:0}
+    .step:nth-child(1),.step:nth-child(2){border-bottom:1px solid var(--line)}
+    .gallery{grid-template-columns:repeat(4,1fr)}
+    .g1,.g3,.g5,.g7,.g8{grid-column:span 2;grid-row:span 1}
+    .g2,.g4,.g6{grid-column:span 2}
+  }
+  @media (max-width:640px){
+    .stat-row{gap:6px}
+    .stat{padding:10px 12px;min-width:0;flex:1}
+    .tent-meta{grid-template-columns:1fr 1fr}
+    .gallery{grid-template-columns:repeat(2,1fr)}
+    .g1,.g2,.g3,.g4,.g5,.g6,.g7,.g8{grid-column:span 2;grid-row:span 1}
+  }
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>★ Arriendo en Santiago &amp; alrededores</span><span class="sep"></span>
+    <span>★ Carpas disco con luces &amp; humo incluidos</span><span class="sep"></span>
+    <span>★ Reserva con 50% de anticipo</span><span class="sep"></span>
+    <span>★ Mobiliario LED · Audio · Juegos</span><span class="sep"></span>
+    <span>★ Arriendo en Santiago &amp; alrededores</span><span class="sep"></span>
+    <span>★ Carpas disco con luces &amp; humo incluidos</span><span class="sep"></span>
+    <span>★ Reserva con 50% de anticipo</span><span class="sep"></span>
+    <span>★ Mobiliario LED · Audio · Juegos</span><span class="sep"></span>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">
+          <span class="pill">EST. 2022</span>
+          Arriendo de fiestas · Santiago, CL
+        </div>
+        <h1>
+          TODO LO QUE<br />
+          NECESITAS<br />
+          <span class="ital acid">para tu próxima</span><br />
+          <span class="stroke">FIESTA.</span>
+        </h1>
+        <p class="hero-sub">
+          <strong>Carpas disco inflables, mobiliario LED, audio y juegos.</strong>
+          Llevamos la fiesta a donde quieras — armamos tu celebración fácil,
+          rápida y épica.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="catalogo.html">Ver Catálogo →</a>
+          <a class="btn btn-ghost" href="https://wa.me/56937363825" target="_blank" rel="noopener">+56 9 3736 3825</a>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="n">500+</div><div class="l">Fiestas armadas</div></div>
+          <div class="stat"><div class="n">4 años</div><div class="l">prendiendo Stgo</div></div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-card video">
+          <video src="assets/img/video-home.mp4" poster="assets/img/video-home-poster.jpg" autoplay loop muted playsinline preload="metadata"></video>
+        </div>
+        <div class="hero-tag">📍 Arriendo · Stgo / RM</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding:64px 0">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:24px">
+      <div>
+        <div class="section-num">[ 01 / CÓMO FUNCIONA ]</div>
+        <h2>Reservar es <span class="ital acid">así de fácil.</span></h2>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01</div>
+        <h4>Elige</h4>
+        <p>Mira nuestro catálogo y arma tu combo: carpa, mobiliario, audio, juegos.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <h4>Reserva</h4>
+        <p>Confírmanos fecha y dirección. Pagas el 50% de abono para asegurar tu día.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <h4>Llegamos</h4>
+        <p>Vamos a tu casa, instalamos todo y dejamos la fiesta lista para prender.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">04</div>
+        <h4>Disfruta</h4>
+        <p>Tú celebras. Al día siguiente pasamos a retirar. Cero estrés, pura fiesta.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="featured">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-num">[ 02 / FEATURED ]</div>
+        <h2>Las carpas <span class="ital acid">que todos andan</span> buscando</h2>
+      </div>
+      <p class="section-blurb">
+        El arriendo de todas nuestras carpas incluye parlante bluetooth,
+        máquina de humo y set de luces. Listo para prender.
+      </p>
+    </div>
+
+    <div class="tents">
+      <article class="tent">
+        <div class="tent-img">
+          <div class="tent-badges">
+            <span class="badge badge-sale">−18% OFERTA</span>
+            <span class="badge badge-incl">+ AUDIO · LUCES · HUMO</span>
+          </div>
+          <img class="photo-img" src="https://cdn.shopify.com/s/files/1/0756/1658/3934/files/edited.jpg" alt="Party Cube 5×5 mts" loading="lazy" />
+        </div>
+        <div class="tent-body">
+          <div class="tent-head">
+            <div>
+              <div class="tent-title">Party Cube</div>
+              <div class="tent-size">5 × 5 mts · 25–30 personas</div>
+            </div>
+            <div class="tent-price">
+              <div class="now">$165.000</div>
+              <span class="was">$200.000</span>
+            </div>
+          </div>
+          <div class="tent-meta">
+            <div>Parlante BT</div><div>Máq. humo</div><div>Luces LED</div>
+          </div>
+          <div class="tent-actions">
+            <a class="reserve" href="producto.html?id=party-cube-5x5-mts">Reservar →</a>
+            <a class="detail-btn" href="producto.html?id=party-cube-5x5-mts">Ver detalle</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="tent">
+        <div class="tent-img">
+          <div class="tent-badges">
+            <span class="badge badge-sale">−13% OFERTA</span>
+            <span class="badge badge-incl">+ AUDIO · LUCES · HUMO</span>
+          </div>
+          <img class="photo-img" src="https://cdn.shopify.com/s/files/1/0756/1658/3934/files/IMG_20221012_214531_139.webp" alt="Party House 5×8 mts" loading="lazy" />
+        </div>
+        <div class="tent-body">
+          <div class="tent-head">
+            <div>
+              <div class="tent-title">Party House</div>
+              <div class="tent-size">5 × 8 mts · 40–45 personas</div>
+            </div>
+            <div class="tent-price">
+              <div class="now">$260.000</div>
+              <span class="was">$300.000</span>
+            </div>
+          </div>
+          <div class="tent-meta">
+            <div>Parlante BT</div><div>Máq. humo</div><div>Luces LED</div>
+          </div>
+          <div class="tent-actions">
+            <a class="reserve" href="producto.html?id=party-house-5x8-mts">Reservar →</a>
+            <a class="detail-btn" href="producto.html?id=party-house-5x8-mts">Ver detalle</a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-num">[ 03 / CATEGORÍAS ]</div>
+        <h2>¿Te imaginas <span class="ital">todo esto</span> en tu evento?</h2>
+      </div>
+      <p class="section-blurb">
+        Con Party House es posible. Cuatro líneas que se combinan para armar
+        cualquier celebración: carpas, mobiliario, audio y juegos.
+      </p>
+    </div>
+
+    <div class="cats">
+      <a class="cat cat-1" href="catalogo.html?cat=carpas">
+        <div class="cat-bg"><img src="assets/img/carpas.jpg" alt="Carpa disco inflable Party House" loading="lazy" /></div>
+        <div class="cat-icon">🕺</div>
+        <div class="cat-content">
+          <div class="cat-num">// 01 — CARPAS</div>
+          <div>
+            <div class="cat-title">Carpas<br/>inflables.</div>
+            <div class="cat-desc">Elige tu carpa, prende la fiesta. ¿Cumpleaños? ¿Junta con amigos? ¿Previa? Tenemos el modelo perfecto para cada espacio.</div>
+            <span class="cat-cta">Explorar carpas <span class="arrow">→</span></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="cat cat-2" href="catalogo.html?cat=mobiliario">
+        <div class="cat-bg"><img src="assets/img/mobiliario.png" alt="Mobiliario LED para eventos" loading="lazy" /></div>
+        <div class="cat-icon">🪑</div>
+        <div class="cat-content">
+          <div class="cat-num">// 02 — MOBILIARIO</div>
+          <div>
+            <div class="cat-title">Mobiliario.</div>
+            <div class="cat-desc">Dale estilo a tu celebración. No basta con buena música: tu fiesta también necesita ambiente y diseño.</div>
+            <span class="cat-cta">Ver piezas <span class="arrow">→</span></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="cat cat-3" href="catalogo.html?cat=audio">
+        <div class="cat-bg"><img src="assets/img/audio.png" alt="Audio, luces y video para fiestas" loading="lazy" /></div>
+        <div class="cat-icon">🔊</div>
+        <div class="cat-content">
+          <div class="cat-num">// 03 — AUDIO / LUCES</div>
+          <div>
+            <div class="cat-title">Audio · Video<br/>· Luces.</div>
+            <div class="cat-desc">Sube el nivel de tu fiesta. ¿Ya tienes la carpa? Perfecto. Ahora vuela el techo con sonido e iluminación profesional.</div>
+            <span class="cat-cta">Ver equipos <span class="arrow">→</span></span>
+          </div>
+        </div>
+      </a>
+
+      <a class="cat cat-4" href="catalogo.html?cat=juegos">
+        <div class="cat-bg"><img src="assets/img/juegos.jpg" alt="Juegos para fiestas" loading="lazy" /></div>
+        <div class="cat-icon">🕹️</div>
+        <div class="cat-content">
+          <div class="cat-num">// 04 — JUEGOS</div>
+          <div>
+            <div class="cat-title">Juegos.</div>
+            <div class="cat-desc">Juegos que prenden cualquier fiesta. Para que todos se rían, compitan y pasen un rato épico.</div>
+            <span class="cat-cta">Ver juegos <span class="arrow">→</span></span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="section-num">[ 04 / FIESTAS REALES ]</div>
+        <h2>Así se vive <span class="ital acid">la fiesta</span> con nosotros.</h2>
+      </div>
+      <p class="section-blurb">
+        Clientes felices, fiestas inolvidables. Esto es lo que pasa cuando
+        reservas con nosotros — un muestrario directo del feed.
+      </p>
+    </div>
+
+    <div class="gallery">
+      <div class="gimg g1"><img src="assets/img/gal-1.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g2"><img src="assets/img/gal-2.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g3"><img src="assets/img/gal-3.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g4"><img src="assets/img/gal-4.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g5"><img src="assets/img/gal-5.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g6"><img src="assets/img/gal-6.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g7"><img src="assets/img/gal-7.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+      <div class="gimg g8"><img src="assets/img/gal-8.jpg" alt="Carpa Party House en fiesta real" loading="lazy" /></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h3>Arma tu fiesta <span class="ital">fácil, rápida</span> y épica.</h3>
+    <p>Reserva tu carpa disco hoy. Llegamos, instalamos, prendemos.</p>
+    <a class="btn" href="catalogo.html">Ver Catálogo →</a>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'home'});
+</script>
+</body>
+</html>

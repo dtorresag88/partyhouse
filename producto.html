@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Producto — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .pd{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;padding:48px 0 96px}
+  @media (max-width:1024px){.pd{grid-template-columns:1fr;gap:32px}}
+
+  .pd-gallery{display:flex;flex-direction:column;gap:12px}
+  .pd-main{aspect-ratio:5/4;border-radius:24px;overflow:hidden;border:1px solid var(--line);position:relative}
+  .pd-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .pd-thumb{aspect-ratio:1;border-radius:12px;overflow:hidden;border:1px solid var(--line);cursor:pointer;transition:border-color .15s}
+  .pd-thumb.active{border-color:var(--acid)}
+  .pd-thumb:hover{border-color:var(--ink)}
+
+  .pd-info .cat{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase}
+  .pd-info h1{font-family:"Archivo Black";font-size:clamp(40px,5vw,72px);line-height:0.9;letter-spacing:-0.03em;margin:14px 0 8px}
+  .pd-size{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase;display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+  .pd-size span{display:inline-flex;align-items:center;gap:8px}
+  .pd-size span::before{content:"";width:6px;height:6px;background:var(--acid);border-radius:50%}
+  .pd-price{display:flex;align-items:baseline;gap:14px;margin:18px 0}
+  .pd-price .now{font-family:"Archivo Black";font-size:48px;color:var(--acid);line-height:1;letter-spacing:-0.02em}
+  .pd-price .was{font-family:"JetBrains Mono";font-size:15px;color:var(--ink-dim);text-decoration:line-through}
+  .pd-price .save{background:var(--magenta);color:#000;font-family:"JetBrains Mono";font-size:10px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:0.08em;text-transform:uppercase}
+  .pd-desc{color:var(--ink-dim);font-size:15px;line-height:1.6;margin:18px 0;max-width:54ch}
+  .pd-incl{border:1px solid var(--line);border-radius:18px;padding:20px 22px;background:var(--card);margin:24px 0}
+  .pd-incl h4{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase;margin:0 0 14px}
+  .pd-incl ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
+  .pd-incl li{font-size:14px;display:flex;align-items:center;gap:8px}
+  .pd-incl li::before{content:"✓";color:var(--acid);font-weight:700}
+  @media (max-width:540px){.pd-incl ul{grid-template-columns:1fr}}
+
+  /* Reserve box */
+  .pd-reserve{border:1px solid var(--line);border-radius:18px;padding:22px;background:var(--bg-2);margin-top:24px}
+  .pd-reserve h4{font-family:"Archivo Black";font-size:18px;margin:0 0 6px;letter-spacing:-0.01em}
+  .pd-reserve .hint{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px}
+  .selected-date{padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-family:"JetBrains Mono";font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;min-height:46px}
+  .selected-date.empty{color:var(--ink-dim)}
+  .selected-date .clear{background:transparent;border:0;color:var(--ink-dim);cursor:pointer;font-size:16px;padding:0 4px}
+  .selected-date .clear:hover{color:var(--danger)}
+  .pd-reserve .cta-row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .pd-reserve .cta-row .btn{flex:1;min-width:180px}
+
+  /* Calendar */
+  .cal{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:8px}
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .cal-month{font-family:"Archivo Black";font-size:15px;letter-spacing:-0.01em;text-transform:capitalize}
+  .cal-nav{display:flex;gap:4px}
+  .cal-nav button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;display:grid;place-items:center;font-family:inherit;font-size:14px}
+  .cal-nav button:hover{border-color:var(--acid);color:var(--acid)}
+  .cal-nav button:disabled{opacity:0.3;cursor:not-allowed}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cal-dow{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);text-align:center;padding:6px 0;letter-spacing:0.08em;text-transform:uppercase}
+  .cal-day{aspect-ratio:1;display:grid;place-items:center;font-family:"JetBrains Mono";font-size:12px;border-radius:8px;cursor:pointer;color:var(--ink);transition:all .12s;background:transparent;border:1px solid transparent}
+  .cal-day:hover:not(.disabled){background:var(--card);border-color:var(--line)}
+  .cal-day.disabled{color:var(--line);cursor:not-allowed;text-decoration:line-through}
+  .cal-day.other{color:transparent;pointer-events:none}
+  .cal-day.today{border-color:var(--magenta)}
+  .cal-day.selected{background:var(--acid);color:#000;font-weight:700;border-color:var(--acid)}
+  .cal-legend{display:flex;gap:14px;font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);margin-top:10px;letter-spacing:0.08em;text-transform:uppercase}
+  .cal-legend span{display:inline-flex;align-items:center;gap:6px}
+  .cal-legend .dot{width:10px;height:10px;border-radius:3px}
+  .cal-legend .dot.today{background:transparent;border:1px solid var(--magenta)}
+  .cal-legend .dot.sel{background:var(--acid)}
+  .cal-legend .dot.dis{background:var(--line)}
+
+  .pd-related{padding:48px 0 96px;border-top:1px solid var(--line)}
+  .pd-related-head{margin-bottom:32px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+  .pd-related h2{font-family:"Archivo Black";font-size:clamp(28px,3.6vw,48px);letter-spacing:-0.02em;margin:0;line-height:0.95}
+  .pd-related-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  @media (max-width:1024px){.pd-related-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:540px){.pd-related-grid{grid-template-columns:1fr}}
+
+  .pd-notfound{padding:120px 0;text-align:center}
+  .pd-notfound h2{font-family:"Archivo Black";font-size:60px;letter-spacing:-0.02em;margin:0}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section style="padding:24px 0 0">
+  <div class="wrap">
+    <div class="crumb" style="font-family:'JetBrains Mono';font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase">
+      <a href="index.html">Home</a> / <a href="catalogo.html">Catálogo</a> / <span id="crumb-name">Producto</span>
+    </div>
+  </div>
+</section>
+
+<div id="pd-root"></div>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'catalogo'});
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  const p = PH.getProduct(id);
+  const root = document.getElementById('pd-root');
+
+  if(!p){
+    document.getElementById('crumb-name').textContent = 'No encontrado';
+    root.innerHTML = `
+      <div class="wrap pd-notfound">
+        <h2>404 — producto no encontrado</h2>
+        <p style="color:var(--ink-dim);margin:16px 0 32px">El producto que buscas no existe. Vuelve al catálogo.</p>
+        <a class="btn btn-primary" href="catalogo.html">Ver Catálogo →</a>
+      </div>`;
+  } else {
+    document.title = p.name + ' — Party House';
+    document.getElementById('crumb-name').textContent = p.name;
+
+    const saveAmount = p.priceWas ? Math.round((1 - p.price/p.priceWas)*100) : 0;
+    const priceWas = p.priceWas
+      ? `<span class="was">${PH.formatCLP(p.priceWas)}</span><span class="save">−${saveAmount}%</span>`
+      : '';
+
+    const imgs = (p.images && p.images.length) ? p.images : (p.img ? [p.img] : []);
+    const thumbs = imgs.map((src,i) =>
+      `<div class="pd-thumb ${i===0?'active':''}" data-src="${src}">${PH.photo(p,{src:src})}</div>`
+    ).join('');
+    const thumbsHtml = imgs.length > 1 ? `<div class="pd-thumbs">${thumbs}</div>` : '';
+
+    root.innerHTML = `
+      <div class="wrap">
+        <div class="pd">
+          <div class="pd-gallery">
+            <div class="pd-main" id="pd-main">${PH.photo(p)}</div>
+            ${thumbsHtml}
+          </div>
+
+          <div class="pd-info">
+            <div class="cat">${p.categoryName}</div>
+            <h1>${p.name}</h1>
+            <div class="pd-size">
+              <span>${p.size}</span>
+              <span>${p.capacity}</span>
+            </div>
+
+            <div class="pd-price">
+              <span class="now">${PH.formatCLP(p.price)}</span>
+              ${priceWas}
+            </div>
+
+            <div class="pd-desc">${p.long || p.short}</div>
+
+            <div class="pd-incl">
+              <h4>// Qué incluye el arriendo</h4>
+              <ul>${(p.includes||[]).map(i => `<li>${i}</li>`).join('')}</ul>
+            </div>
+
+            <div class="pd-reserve">
+              <h4>Elige fecha del evento</h4>
+              <div class="hint">// Reserva con 50% de abono. Te confirmamos en máx. 24h.</div>
+
+              <div class="selected-date empty" id="selected-date">
+                <span id="selected-date-text">— Sin fecha seleccionada —</span>
+                <button class="clear" id="clear-date" style="display:none">✕</button>
+              </div>
+
+              <div class="cal" id="cal"></div>
+              <div class="cal-legend">
+                <span><span class="dot today"></span>Hoy</span>
+                <span><span class="dot sel"></span>Seleccionado</span>
+                <span><span class="dot dis"></span>No disponible</span>
+              </div>
+
+              <div class="cta-row">
+                <button class="btn btn-primary" id="btn-reserve">Reservar →</button>
+                <a class="btn btn-ghost" href="${PH.waLink('¡Hola! Quiero info sobre el arriendo de ' + p.name + ' (' + p.size + ')')}" target="_blank" rel="noopener">WhatsApp →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pd-related">
+        <div class="wrap">
+          <div class="pd-related-head">
+            <div>
+              <div class="cat" style="font-family:'JetBrains Mono';font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase">[ Tal vez también te interese ]</div>
+              <h2 style="margin-top:8px">Combínalo con<span class="acid"> ·</span></h2>
+            </div>
+            <a class="btn btn-ghost btn-sm" href="catalogo.html">Ver todo →</a>
+          </div>
+          <div class="pd-related-grid" id="related"></div>
+        </div>
+      </div>
+    `;
+
+    // Thumbnails swap the main photo
+    root.querySelectorAll('.pd-thumb').forEach(th => {
+      th.addEventListener('click', () => {
+        root.querySelectorAll('.pd-thumb').forEach(t => t.classList.remove('active'));
+        th.classList.add('active');
+        document.getElementById('pd-main').innerHTML = PH.photo(p, { src: th.dataset.src });
+      });
+    });
+
+    // Related: prefer same category, fill with others
+    const sameCat = PH_PRODUCTS.filter(x => x.id !== p.id && x.category === p.category).sort(()=>Math.random()-0.5);
+    const otherCat = PH_PRODUCTS.filter(x => x.id !== p.id && x.category !== p.category).sort(()=>Math.random()-0.5);
+    const related = sameCat.concat(otherCat).slice(0,4);
+    document.getElementById('related').innerHTML = related.map(r => `
+      <article class="product-card">
+        <a class="product-img" href="producto.html?id=${r.id}" style="display:block">
+          ${PH.photo(r,{label:r.name})}
+        </a>
+        <div class="product-body">
+          <div class="product-cat">${r.categoryName}</div>
+          <h3 class="product-title">${r.name}</h3>
+          <div class="product-size">${r.size}</div>
+          <div class="product-price"><span class="now">${PH.formatCLP(r.price)}</span></div>
+        </div>
+      </article>`).join('');
+
+    // ============ Calendar ============
+    const today = new Date(); today.setHours(0,0,0,0);
+    let view = new Date(today.getFullYear(), today.getMonth(), 1);
+    let selected = null;
+    const MIN = new Date(today); MIN.setDate(MIN.getDate()+3); // need 3 days advance
+    const MAX = new Date(today); MAX.setMonth(MAX.getMonth()+4); // up to 4 months
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const DOW = ['L','M','M','J','V','S','D'];
+
+    // mock "unavailable" dates — every 2 weeks, weekends nearby fully booked
+    function isUnavailable(d){
+      if(d < MIN) return true;
+      if(d > MAX) return true;
+      // mock pattern: every 5th day
+      return (d.getDate() + d.getMonth()*3) % 17 === 0;
+    }
+
+    function renderCal(){
+      const y = view.getFullYear(), m = view.getMonth();
+      const first = new Date(y,m,1);
+      const last = new Date(y,m+1,0);
+      const startOffset = (first.getDay() + 6) % 7; // Mon = 0
+      const totalDays = last.getDate();
+
+      let cells = '';
+      DOW.forEach(d => { cells += `<div class="cal-dow">${d}</div>`; });
+      for(let i=0;i<startOffset;i++){ cells += '<div class="cal-day other"></div>'; }
+      for(let day=1; day<=totalDays; day++){
+        const d = new Date(y,m,day);
+        const dis = isUnavailable(d);
+        const isToday = d.getTime() === today.getTime();
+        const isSel = selected && d.getTime() === selected.getTime();
+        cells += `<div class="cal-day ${dis?'disabled':''} ${isToday?'today':''} ${isSel?'selected':''}" data-d="${y}-${m}-${day}">${day}</div>`;
+      }
+
+      document.getElementById('cal').innerHTML = `
+        <div class="cal-head">
+          <div class="cal-month">${MESES[m]} ${y}</div>
+          <div class="cal-nav">
+            <button id="prev" ${y===today.getFullYear()&&m<=today.getMonth()?'disabled':''}>‹</button>
+            <button id="next" ${(y===MAX.getFullYear()&&m>=MAX.getMonth())?'disabled':''}>›</button>
+          </div>
+        </div>
+        <div class="cal-grid">${cells}</div>
+      `;
+      document.getElementById('prev').onclick = () => { view = new Date(y, m-1, 1); renderCal(); };
+      document.getElementById('next').onclick = () => { view = new Date(y, m+1, 1); renderCal(); };
+      document.querySelectorAll('.cal-day[data-d]').forEach(c => {
+        if(c.classList.contains('disabled')) return;
+        c.addEventListener('click', () => {
+          const [yy,mm,dd] = c.dataset.d.split('-').map(Number);
+          selected = new Date(yy,mm,dd);
+          updateSelectedLabel();
+          renderCal();
+        });
+      });
+    }
+
+    function updateSelectedLabel(){
+      const lbl = document.getElementById('selected-date');
+      const txt = document.getElementById('selected-date-text');
+      const clear = document.getElementById('clear-date');
+      if(selected){
+        lbl.classList.remove('empty');
+        const fmt = selected.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+        txt.textContent = '📅  ' + fmt.charAt(0).toUpperCase() + fmt.slice(1);
+        clear.style.display = '';
+      } else {
+        lbl.classList.add('empty');
+        txt.textContent = '— Sin fecha seleccionada —';
+        clear.style.display = 'none';
+      }
+    }
+
+    document.getElementById('clear-date').addEventListener('click', () => {
+      selected = null;
+      updateSelectedLabel();
+      renderCal();
+    });
+
+    document.getElementById('btn-reserve').addEventListener('click', () => {
+      if(!selected){
+        PH.toast('Elige una fecha primero', 'error');
+        return;
+      }
+      PH.addToCart(p.id, { date: selected.toISOString().slice(0,10) });
+    });
+
+    renderCal();
+    updateSelectedLabel();
+  }
+</script>
+</body>
+</html>

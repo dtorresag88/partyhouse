@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Catálogo — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .cat-toolbar{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:32px;padding:20px 0;border-bottom:1px solid var(--line)}
+  .filter-pills{display:flex;gap:8px;flex-wrap:wrap}
+  .filter-pill{padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer;font-family:"JetBrains Mono";font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;transition:all .15s;display:inline-flex;align-items:center;gap:8px}
+  .filter-pill:hover{color:var(--ink);border-color:var(--ink)}
+  .filter-pill.active{background:var(--acid);color:#000;border-color:var(--acid)}
+  .filter-pill .count{font-size:10px;opacity:0.6}
+  .filter-pill.active .count{opacity:0.7}
+  .sort-row{display:flex;align-items:center;gap:12px;font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase}
+  .sort-row select{background:transparent;border:1px solid var(--line);color:var(--ink);padding:8px 14px;border-radius:999px;font-family:inherit;font-size:11px;cursor:pointer;outline:0;letter-spacing:0.1em}
+  .results-count{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:24px}
+  .product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  @media (max-width:1024px){.product-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:640px){.product-grid{grid-template-columns:1fr}}
+  .empty-state{padding:80px 32px;text-align:center;color:var(--ink-dim);border:1px dashed var(--line);border-radius:20px}
+  .empty-state h3{font-family:"Archivo Black";font-size:28px;color:var(--ink);margin:0 0 8px}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">CATÁLOGO</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Catálogo</div>
+    <h1>Todo lo que <span class="ital acid">prende</span> tu fiesta.</h1>
+    <p class="lead">Carpas, mobiliario LED, audio profesional y juegos para que armes la celebración exacta que quieres. Filtra por categoría o búscalo directo.</p>
+  </div>
+</section>
+
+<section style="padding:48px 0 96px">
+  <div class="wrap">
+    <div class="cat-toolbar">
+      <div class="filter-pills" id="filter-pills"></div>
+      <div class="sort-row">
+        <span>Ordenar:</span>
+        <select id="sort">
+          <option value="featured">Destacados</option>
+          <option value="price-asc">Precio: menor a mayor</option>
+          <option value="price-desc">Precio: mayor a menor</option>
+          <option value="name">Nombre A→Z</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="results-count" id="results-count"></div>
+    <div class="product-grid" id="grid"></div>
+
+    <div class="empty-state" id="empty" style="display:none">
+      <h3>Nada por aquí</h3>
+      <p>No hay productos que coincidan con tu filtro.</p>
+    </div>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'catalogo'});
+
+  const params = new URLSearchParams(location.search);
+  let activeCat = params.get('cat') || 'all';
+  let sortBy = 'featured';
+
+  function renderFilters(){
+    const wrap = document.getElementById('filter-pills');
+    const counts = {};
+    PH_PRODUCTS.forEach(p => { counts[p.category] = (counts[p.category]||0)+1; });
+    counts.all = PH_PRODUCTS.length;
+    wrap.innerHTML = PH_CATEGORIES.map(c => `
+      <button class="filter-pill ${c.id===activeCat?'active':''}" data-cat="${c.id}">
+        <span>${c.icon}</span> ${c.name} <span class="count">(${counts[c.id]||0})</span>
+      </button>`).join('');
+    wrap.querySelectorAll('.filter-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeCat = btn.dataset.cat;
+        const u = new URL(location.href);
+        if(activeCat === 'all') u.searchParams.delete('cat');
+        else u.searchParams.set('cat', activeCat);
+        history.replaceState(null, '', u);
+        render();
+      });
+    });
+  }
+
+  function sortProducts(list){
+    const arr = list.slice();
+    if(sortBy === 'price-asc') arr.sort((a,b)=>a.price-b.price);
+    else if(sortBy === 'price-desc') arr.sort((a,b)=>b.price-a.price);
+    else if(sortBy === 'name') arr.sort((a,b)=>a.name.localeCompare(b.name));
+    return arr;
+  }
+
+  function productCard(p){
+    const badges = (p.badges||[]).map(b => {
+      if(b==='sale') return '<span class="badge badge-sale">OFERTA</span>';
+      if(b==='new') return '<span class="badge badge-new">NUEVO</span>';
+      if(b==='incluye') return '<span class="badge badge-incl">+ AUDIO · LUCES</span>';
+      return '';
+    }).join('');
+    const priceWas = p.priceWas ? `<span class="was">${PH.formatCLP(p.priceWas)}</span>` : '';
+    return `
+      <article class="product-card">
+        <a class="product-img" href="producto.html?id=${p.id}" style="display:block">
+          <div class="product-badges">${badges}</div>
+          ${PH.photo(p)}
+        </a>
+        <div class="product-body">
+          <div class="product-cat">${p.categoryName}</div>
+          <h3 class="product-title">${p.name}</h3>
+          <div class="product-size">${p.size} · ${p.capacity}</div>
+          <div class="product-price"><span class="now">${PH.formatCLP(p.price)}</span>${priceWas}</div>
+          <div class="product-actions">
+            <button class="reserve" data-add="${p.id}">+ Carrito</button>
+            <a class="detail-btn" href="producto.html?id=${p.id}">Detalle →</a>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function render(){
+    renderFilters();
+    let list = PH_PRODUCTS.filter(p => activeCat === 'all' || p.category === activeCat);
+    list = sortProducts(list);
+    document.getElementById('results-count').textContent =
+      `[ ${list.length} ${list.length===1?'producto':'productos'} encontrado${list.length===1?'':'s'} ]`;
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    if(list.length === 0){
+      grid.innerHTML = '';
+      empty.style.display = '';
+    } else {
+      empty.style.display = 'none';
+      grid.innerHTML = list.map(productCard).join('');
+      grid.querySelectorAll('[data-add]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          PH.addToCart(btn.dataset.add);
+        });
+      });
+    }
+  }
+
+  document.getElementById('sort').addEventListener('change', e => {
+    sortBy = e.target.value;
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

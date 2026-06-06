@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Contacto — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .contact{padding:64px 0 96px}
+  .contact-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:48px}
+  @media (max-width:1024px){.contact-grid{grid-template-columns:1fr}}
+  .contact-card{border:1px solid var(--line);border-radius:24px;padding:36px;background:var(--card)}
+  .contact-card h3{font-family:"Archivo Black";font-size:28px;letter-spacing:-0.02em;margin:0 0 18px;line-height:1}
+  .contact-info{display:flex;flex-direction:column;gap:18px;margin-top:32px}
+  .ci{display:flex;gap:18px;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--bg-2);transition:all .15s}
+  .ci:hover{border-color:var(--acid)}
+  .ci .ico{width:44px;height:44px;border-radius:50%;background:var(--acid);color:#000;display:grid;place-items:center;font-weight:900;font-size:20px;flex-shrink:0}
+  .ci .lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:4px}
+  .ci .val{font-family:"Archivo Black";font-size:18px;letter-spacing:-0.01em}
+  .ci .sub{color:var(--ink-dim);font-size:13px;margin-top:2px}
+
+  .map-box{margin-top:24px;border:1px solid var(--line);border-radius:16px;overflow:hidden;aspect-ratio:5/3;background:var(--bg-2);position:relative}
+  .map-mock{position:absolute;inset:0;background:
+    radial-gradient(circle at 50% 50%, rgba(232,255,58,0.1) 0%, transparent 50%),
+    repeating-linear-gradient(0deg,transparent 0 28px, var(--line) 28px 29px),
+    repeating-linear-gradient(90deg,transparent 0 28px, var(--line) 28px 29px),
+    var(--bg)}
+  .map-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);text-align:center}
+  .map-pin .dot{width:18px;height:18px;border-radius:50%;background:var(--magenta);box-shadow:0 0 0 6px rgba(255,61,166,0.25);margin:0 auto;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(255,61,166,0.25)}50%{box-shadow:0 0 0 12px rgba(255,61,166,0.1)}}
+  .map-pin .pin-lbl{font-family:"Archivo Black";font-size:14px;background:#000;border:1px solid var(--magenta);padding:6px 12px;border-radius:999px;margin-top:8px;display:inline-block}
+
+  .form-ok{display:none;text-align:center;padding:48px 24px;border:1px dashed var(--success);border-radius:20px;background:rgba(58,255,178,0.05)}
+  .form-ok.show{display:block}
+  .form-ok h3{font-family:"Archivo Black";font-size:32px;letter-spacing:-0.02em;color:var(--success);margin:0 0 10px}
+  .form-ok p{color:var(--ink-dim);margin:0 0 22px}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">CONTACTO</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Contacto</div>
+    <h1>Hablemos de <span class="ital acid">tu fiesta.</span></h1>
+    <p class="lead">Escríbenos lo que necesitas y te respondemos máximo en 24 horas. Si la fiesta es esta semana, mejor por WhatsApp.</p>
+  </div>
+</section>
+
+<section class="contact">
+  <div class="wrap">
+    <div class="contact-grid">
+      <div class="contact-card">
+        <h3>Envíanos un mensaje</h3>
+
+        <form id="contact-form" novalidate>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Nombre completo</label>
+              <input type="text" name="name" required minlength="2" />
+              <span class="err-msg">Ingresa tu nombre</span>
+            </div>
+            <div class="form-field">
+              <label>Email</label>
+              <input type="email" name="email" required />
+              <span class="err-msg">Email inválido</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Teléfono</label>
+              <input type="tel" name="phone" placeholder="+56 9 ..." />
+              <span class="err-msg">Teléfono inválido</span>
+            </div>
+            <div class="form-field">
+              <label>Fecha del evento</label>
+              <input type="date" name="date" />
+              <span class="err-msg">Fecha inválida</span>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Tipo de evento</label>
+            <select name="type">
+              <option>Cumpleaños</option>
+              <option>Cumpleaños 18</option>
+              <option>Junta con amigos / Previa</option>
+              <option>Matrimonio</option>
+              <option>Fiesta de empresa</option>
+              <option>Despedida</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Cuéntanos de tu fiesta</label>
+            <textarea name="message" required minlength="10" placeholder="Cuántas personas, qué productos te interesan, dirección o comuna…"></textarea>
+            <span class="err-msg">Cuéntanos un poco más (mínimo 10 caracteres)</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Enviar mensaje →</button>
+        </form>
+
+        <div class="form-ok" id="ok">
+          <h3>✓ ¡Mensaje enviado!</h3>
+          <p>Te respondemos en menos de 24 horas. Mientras tanto, revisa nuestro catálogo.</p>
+          <a class="btn btn-ghost" href="catalogo.html">Ver Catálogo →</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="contact-info">
+          <a class="ci" href="https://wa.me/56937363825" target="_blank" rel="noopener">
+            <div class="ico">✆</div>
+            <div>
+              <div class="lbl">Teléfono / WhatsApp</div>
+              <div class="val">+56 9 3736 3825</div>
+              <div class="sub">Respondemos todos los días</div>
+            </div>
+          </a>
+          <a class="ci" href="mailto:contacto@partyhouse.cl">
+            <div class="ico">✉</div>
+            <div>
+              <div class="lbl">Email</div>
+              <div class="val">contacto@partyhouse.cl</div>
+              <div class="sub">Respuesta en menos de 24h</div>
+            </div>
+          </a>
+          <div class="ci">
+            <div class="ico">⌖</div>
+            <div>
+              <div class="lbl">Ubicación</div>
+              <div class="val">Las Condes</div>
+              <div class="sub">Santiago, Chile · Servicio en toda la RM</div>
+            </div>
+          </div>
+          <div class="ci">
+            <div class="ico">◔</div>
+            <div>
+              <div class="lbl">Horario</div>
+              <div class="val">Lun – Dom · 09:00 – 22:00</div>
+              <div class="sub">Atención por mensajes 24/7</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-box">
+          <div class="map-mock"></div>
+          <div class="map-pin">
+            <div class="dot"></div>
+            <div class="pin-lbl">📍 Las Condes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'contacto'});
+
+  const form = document.getElementById('contact-form');
+  const ok = document.getElementById('ok');
+
+  function validate(){
+    let valid = true;
+    const fields = form.querySelectorAll('input,textarea,select');
+    fields.forEach(f => {
+      const wrap = f.closest('.form-field');
+      if(!wrap) return;
+      wrap.classList.remove('error');
+      const v = (f.value || '').trim();
+      if(f.name === 'name' && v.length < 2){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'phone' && v && !/^[\d\s+()-]{7,}$/.test(v)){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'message' && v.length < 10){ wrap.classList.add('error'); valid=false; }
+    });
+    return valid;
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if(!validate()){
+      PH.toast('Revisa los campos marcados', 'error');
+      return;
+    }
+    form.style.display = 'none';
+    ok.classList.add('show');
+    PH.toast('✓ Mensaje enviado', 'success');
+  });
+</script>
+</body>
+</html>
