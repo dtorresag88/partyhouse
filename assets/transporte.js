@@ -21,8 +21,10 @@ window.PH_TRANSPORTE = {
     { nombre: 'Peñalolén', valor: 25000 },
     { nombre: 'Chicureo / Chamisero', valor: 25000 },
     { nombre: 'Colina', valor: 30000 },
+    { nombre: 'Macul', valor: 30000 },
     { nombre: 'Lampa', valor: 40000 },
     { nombre: 'La Florida / Puente Alto', valor: 40000 },
+    { nombre: 'Padre Hurtado', valor: 40000 },
     { nombre: 'Maipú', valor: 45000 },
     { nombre: 'San Bernardo / Talagante / Calera de Tango', valor: 50000 }
   ],
