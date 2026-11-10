@@ -76,8 +76,11 @@ El checkout ofrece **"Pagar abono con Mercado Pago"** (Checkout Pro) además de 
   producción. Con credenciales de prueba (`TEST-…`) queda oculto para los clientes; para probarlo abre
   `checkout.html?prueba=1` (o el sitio en local).
 - **Pasar a producción:** reemplaza `MP_ACCESS_TOKEN` por el Access Token de producción (`APP_USR-…`). No hay que tocar código.
-- **Aviso por correo:** cada abono pagado envía un correo desde `reservas@partyhouse.cl` (Resend, secreto `RESEND_API_KEY`)
-  al correo guardado en la tabla `config` (clave `email_avisos`) de Supabase.
+- **Correos** (desde `reservas@partyhouse.cl`, vía Resend, secreto `RESEND_API_KEY`; plantillas en
+  `supabase/functions/pagos/correos.ts`), una sola vez por reserva pagada:
+  - **Aviso al dueño**: al correo guardado en la tabla `config` (clave `email_avisos`), con los datos del cliente.
+  - **Confirmación al cliente**: código, detalle, saldo, próximos pasos y la fecha adjunta (.ics).
+    Las respuestas del cliente llegan a `contacto@partyhouse.cl`.
 
 ## Analítica (opcional)
 

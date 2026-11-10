@@ -13,7 +13,9 @@
 //   SITE_URL           (opcional)    por defecto https://partyhouse.cl
 //   RESEND_API_KEY     (opcional)    para el aviso por correo de cada abono pagado (destino: tabla config, clave email_avisos)
 //   EMAIL_FROM         (opcional)    remitente; por defecto "Party House <reservas@partyhouse.cl>"
+// Correos: aviso al dueño + confirmación al cliente (plantillas en correos.ts)
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import { correoCliente, correoDueno, CONTACTO, enviarCorreo, REMITENTE } from './correos.ts';
 
 const SITE = (Deno.env.get('SITE_URL') || 'https://partyhouse.cl').replace(/\/$/, '');
 const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ||
@@ -168,74 +170,50 @@ async function aplicarPago(paymentId: string) {
   await db.from('reservas').update(upd).eq('id', res.id);
   const actual = { ...res, ...upd };
 
-  // Aviso por correo: solo la primera vez que la reserva queda pagada (webhook y página pueden llegar a la vez)
-  if (estado === 'pagado' && !res.aviso_enviado_en) {
-    const { data: marcada } = await db.from('reservas').update({ aviso_enviado_en: new Date().toISOString() })
-      .eq('id', res.id).is('aviso_enviado_en', null).select('id');
-    if (marcada?.length) {
-      try { await avisarPago(actual); }
-      catch (e) {
-        console.error('No se pudo enviar el aviso por correo', e);
-        await db.from('reservas').update({ aviso_enviado_en: null }).eq('id', res.id); // reintento en la próxima notificación
-      }
-    }
+  // Correos: cada uno se envía una sola vez (webhook y página pueden llegar a la vez); si falla, se reintenta
+  // en la próxima notificación de Mercado Pago.
+  if (estado === 'pagado') {
+    await enviarUnaVez(res, 'aviso_enviado_en', () => avisarPago(actual));
+    await enviarUnaVez(res, 'confirmacion_cliente_en', () => confirmarCliente(actual));
   }
   return actual;
 }
 
-// ---------- aviso por correo al dueño (Resend) ----------
-const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-const clp = (n: number) => '$' + Math.round(n).toLocaleString('es-CL');
-const fechaLarga = (f: string) => new Date(f + 'T12:00:00Z').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+// ---------- correos (plantillas en correos.ts) ----------
+// deno-lint-ignore no-explicit-any
+async function enviarUnaVez(res: any, columna: 'aviso_enviado_en' | 'confirmacion_cliente_en', enviar: () => Promise<unknown>) {
+  if (res[columna]) return;
+  const { data: marcada } = await db.from('reservas').update({ [columna]: new Date().toISOString() })
+    .eq('id', res.id).is(columna, null).select('id');
+  if (!marcada?.length) return;
+  try { await enviar(); }
+  catch (e) {
+    console.error('No se pudo enviar correo (' + columna + ')', e);
+    await db.from('reservas').update({ [columna]: null }).eq('id', res.id);
+  }
+}
+const resendKey = () => {
+  const k = Deno.env.get('RESEND_API_KEY');
+  if (!k) throw new Error('RESEND_API_KEY no configurada');
+  return k;
+};
+const esPrueba = () => String(Deno.env.get('MP_ACCESS_TOKEN') || '').startsWith('TEST-');
 
 // deno-lint-ignore no-explicit-any
 async function avisarPago(r: any) {
-  const key = Deno.env.get('RESEND_API_KEY');
-  if (!key) throw new Error('RESEND_API_KEY no configurada');
+  const key = resendKey();
   const { data: cfg } = await db.from('config').select('valor').eq('clave', 'email_avisos').maybeSingle();
   if (!cfg?.valor) throw new Error('config.email_avisos vacío');
-
-  const items = r.items as Array<{ nombre: string; qty: number; fecha: string; precio: number }>;
-  const fechas = (r.fechas as string[]).map(fechaLarga).join(' · ');
-  const tel = String(r.cliente_telefono).replace(/[^\d]/g, '');
-  const wa = 'https://wa.me/' + (tel.startsWith('56') ? tel : '56' + tel.replace(/^0+/, ''));
-  const test = String(Deno.env.get('MP_ACCESS_TOKEN') || '').startsWith('TEST-');
-  const filas = items.map((i) =>
-    `<tr><td style="padding:6px 0">${esc(i.nombre)} × ${i.qty}</td><td style="padding:6px 0;color:#666">${esc(fechaLarga(i.fecha))}</td><td style="padding:6px 0;text-align:right">${clp(i.precio * i.qty)}</td></tr>`).join('');
-
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#111">
-  ${test ? '<p style="background:#fff3cd;padding:8px 12px;border-radius:6px"><b>PRUEBA</b> — pago con credenciales de prueba, no hay dinero real.</p>' : ''}
-  <h2 style="margin:0 0 4px">🎉 Abono pagado · ${esc(r.codigo)}</h2>
-  <p style="margin:0 0 16px;color:#444">Evento: <b>${esc(fechas)}</b> · ${esc(r.comuna)}</p>
-  <table style="width:100%;border-collapse:collapse;border-top:1px solid #ddd;border-bottom:1px solid #ddd;font-size:14px">${filas}</table>
-  <p style="font-size:15px;line-height:1.6">
-    Total: <b>${clp(r.total)}</b><br>
-    Abono pagado: <b style="color:#0a7a3e">${clp(r.monto_pagado || r.abono)}</b><br>
-    Saldo el día del evento: <b>${clp(r.total - (r.monto_pagado || r.abono))}</b> + transporte
-  </p>
-  <h3 style="margin:20px 0 6px">Cliente</h3>
-  <p style="font-size:15px;line-height:1.6;margin:0">
-    ${esc(r.cliente_nombre)}<br>
-    📞 <a href="${wa}">${esc(r.cliente_telefono)}</a> (WhatsApp)<br>
-    ✉️ ${esc(r.cliente_email)}<br>
-    📍 ${esc(r.comuna)}
-    ${r.notas ? `<br>📝 ${esc(r.notas)}` : ''}
-  </p>
-  <p style="color:#888;font-size:12px;margin-top:20px">Pago Mercado Pago #${esc(r.mp_payment_id)} · Las fechas de productos con bloqueo automático ya quedaron bloqueadas en el sitio.</p>
-</div>`;
-
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'Idempotency-Key': 'aviso-' + r.codigo },
-    body: JSON.stringify({
-      from: Deno.env.get('EMAIL_FROM') || 'Party House <reservas@partyhouse.cl>',
-      to: [cfg.valor],
-      reply_to: r.cliente_email,
-      subject: `${test ? '[PRUEBA] ' : ''}💸 Abono pagado ${clp(r.monto_pagado || r.abono)} · ${r.codigo} · ${fechas}`,
-      html,
-    }),
+  await enviarCorreo(key, 'aviso-' + r.codigo, {
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [cfg.valor], reply_to: r.cliente_email, ...correoDueno(r, esPrueba()),
   });
-  if (!resp.ok) throw new Error('resend ' + resp.status + ': ' + (await resp.text()).slice(0, 300));
+}
+
+// deno-lint-ignore no-explicit-any
+async function confirmarCliente(r: any) {
+  await enviarCorreo(resendKey(), 'cliente-' + r.codigo, {
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: CONTACTO, ...correoCliente(r, esPrueba()),
+  });
 }
 
 async function firmaValida(req: Request, url: URL) {
