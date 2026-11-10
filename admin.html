@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel · Party House</title>
+  <link rel="icon" href="assets/logo-dark.png">
+  <meta name="theme-color" content="#0c0a14">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/admin.css">
+  <style>
+    .topbar .brand img { width: auto; height: 30px; border-radius: 0; }
+    .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+    .cal .dow { font-size: .75rem; font-weight: 800; color: var(--muted); text-align: center; text-transform: uppercase; }
+    .cal .day { min-height: 96px; background: #fff; border-radius: 10px; box-shadow: var(--shadow); padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
+    .cal .day:hover { box-shadow: 0 0 0 2px var(--orange); }
+    .cal .day.otro { background: transparent; box-shadow: none; cursor: default; }
+    .cal .day.hoy .n { background: var(--navy); color: #fff; }
+    .cal .day.cerrado { background: repeating-linear-gradient(45deg, #fde4e0 0 8px, #fff 8px 16px); }
+    .cal .day.pasado { opacity: .55; }
+    .cal .n { font-weight: 800; font-size: .85rem; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; }
+    .cal .ev { font-size: .72rem; line-height: 1.25; border-radius: 6px; padding: 2px 5px; background: var(--sky-50); color: var(--blue-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+    .cal .ev.bl { background: var(--red-bg); color: var(--red); }
+    .cal .ev.ok { background: var(--green-bg); color: var(--green); }
+    @media (max-width: 700px) { .cal { gap: 3px; } .cal .day { min-height: 64px; padding: 3px; } .cal .ev { font-size: .62rem; padding: 1px 3px; } }
+    .linea-prod { display: grid; grid-template-columns: minmax(0, 1fr) 70px 110px 32px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    @media (max-width: 560px) { .linea-prod { grid-template-columns: minmax(0, 1fr) 56px 90px 28px; } }
+    .fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+    .fotos .ft { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--gray-bg); }
+    .fotos .ft img { width: 100%; height: 100%; object-fit: cover; }
+    .fotos .ft button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; }
+    .fotos .ft .principal { position: absolute; left: 4px; bottom: 4px; font-size: .65rem; background: var(--orange); color: #0c0a14; border-radius: 6px; padding: 1px 5px; font-weight: 800; }
+    .fotos .drop { aspect-ratio: 1; border: 2px dashed var(--line-2); border-radius: 10px; display: grid; place-items: center; text-align: center; color: var(--muted); cursor: pointer; font-size: .8rem; padding: 6px; }
+    .fotos .drop.over { border-color: var(--orange); background: var(--sky-50); }
+  </style>
+</head>
+<body>
+  <!-- ACCESO -->
+  <div id="auth-view" class="auth" hidden>
+    <div class="auth-card" id="auth-card"></div>
+  </div>
+
+  <!-- PANEL -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Menú">☰</button>
+      <a class="brand" href="#/"><img src="assets/logo-white.png" alt="Party House"><span>Panel</span></a>
+      <div class="gsearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.06l4.24 4.24-1.42 1.42-4.24-4.24A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        <input id="gsearch" type="search" placeholder="Buscar reservas, productos o clientes" autocomplete="off">
+        <div class="gs-results" id="gs-results" hidden></div>
+      </div>
+      <div class="who dd">
+        <button class="btn btn-sm" id="who-btn" style="background:rgba(255,255,255,.12);color:#fff;box-shadow:none"><span class="avatar" id="who-avatar">P</span><span class="email" id="who-email"></span></button>
+        <div class="dd-menu" id="who-menu" hidden>
+          <a href="https://partyhouse.cl" target="_blank" rel="noopener">🎉 Ver sitio</a>
+          <a href="#/configuracion/equipo">👥 Equipo</a>
+          <button id="change-pass">🔑 Cambiar contraseña</button>
+          <button id="logout" class="danger">Cerrar sesión</button>
+        </div>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <nav class="nav" id="nav">
+        <a href="#/" data-nav="inicio"><span class="ico">🏠</span>Inicio</a>
+        <a href="#/reservas" data-nav="reservas"><span class="ico">📅</span>Reservas<span class="count" id="nav-reservas-count" hidden></span></a>
+        <div class="sub">
+          <a href="#/reservas/nueva" data-nav="reservas-nueva">Crear reserva</a>
+          <a href="#/calendario" data-nav="calendario">Calendario</a>
+          <a href="#/garantias" data-nav="garantias">Garantías</a>
+          <a href="#/reservas?f=no_pagadas" data-nav="no-pagadas">Pagos no completados</a>
+        </div>
+        <a href="#/productos" data-nav="productos"><span class="ico">🏷️</span>Productos</a>
+        <div class="sub">
+          <a href="#/categorias" data-nav="categorias">Categorías</a>
+        </div>
+        <a href="#/clientes" data-nav="clientes"><span class="ico">👤</span>Clientes</a>
+        <a href="#/analisis" data-nav="analisis"><span class="ico">📊</span>Análisis</a>
+        <div class="nav-sep"></div>
+        <a href="https://partyhouse.cl" target="_blank" rel="noopener"><span class="ico">🎉</span>Sitio web ↗</a>
+        <a href="#/configuracion" data-nav="configuracion"><span class="ico">⚙️</span>Configuración</a>
+        <div class="sub">
+          <a href="#/configuracion/flete" data-nav="flete">Flete por comuna</a>
+          <a href="#/configuracion/equipo" data-nav="equipo">Administradores</a>
+        </div>
+      </nav>
+      <div class="side-foot" id="side-foot"></div>
+    </aside>
+
+    <main class="main" id="main"></main>
+  </div>
+
+  <div class="savebar" id="savebar">
+    <span>Cambios sin guardar</span>
+    <button class="btn btn-sm" id="savebar-discard">Descartar</button>
+    <button class="btn btn-sm btn-orange" id="savebar-save">Guardar</button>
+  </div>
+  <div id="modal-root"></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="assets/admin/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="assets/admin/core.js"></script>
+  <script src="assets/admin/inicio.js"></script>
+  <script src="assets/admin/reservas.js"></script>
+  <script src="assets/admin/calendario.js"></script>
+  <script src="assets/admin/productos.js"></script>
+  <script src="assets/admin/clientes.js"></script>
+  <script src="assets/admin/configuracion.js"></script>
+  <script src="assets/admin/boot.js"></script>
+</body>
+</html>

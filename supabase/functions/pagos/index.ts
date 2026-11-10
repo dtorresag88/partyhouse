@@ -7,6 +7,8 @@
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
 //   POST /contacto        → formulario de contacto del sitio: envía el mensaje por correo al dueño
 //   POST /recordatorios   → (tarea diaria pg_cron, header x-cron-key) pide la garantía desde 7 días antes del evento
+//   GET  /datos.js        → catálogo, disponibilidad, flete y ajustes para el sitio (window.PH_*), desde la base
+//   POST /confirmar       → (panel, sesión de administrador) envía la confirmación por correo de una reserva
 //   GET  /modo            → 'produccion' | 'prueba' | 'desactivado' (el checkout muestra el botón solo en producción)
 //
 // Secretos (Supabase → Edge Functions → Secrets):
@@ -27,7 +29,6 @@ const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ||
   'https://partyhouse.cl,https://www.partyhouse.cl,https://dtorresag88.github.io,http://127.0.0.1:8765,http://localhost:8765')
   .split(',').map((s) => s.trim());
 const MP_API = 'https://api.mercadopago.com';
-const ABONO = 0.5;
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -67,49 +68,73 @@ function codigoNuevo() {
   return 'PH-' + Array.from(r, (b) => abc[b % abc.length]).join('');
 }
 
-// ---------- catálogo y disponibilidad (leídos del sitio publicado) ----------
+// ---------- catálogo, disponibilidad, flete y ajustes (tablas editables desde el panel) ----------
 type Producto = { id: string; name: string; price: number };
 type Dispo = {
   diasAnticipacion: number; mesesMaximo: number; cerrado: string[];
   ocupado: Record<string, string[]>; comparten: string[][]; bloqueoAutomatico: string[];
 };
 type Transporte = { comunas: Array<{ nombre: string; valor: number }>; sinFlete: string[] };
-let cache: { t: number; productos: Map<string, Producto>; dispo: Dispo; transporte: Transporte } | null = null;
-
-// Convierte el objeto literal de un archivo de configuración del sitio (assets/*.js) a JSON.
-function leerObjetoJs(texto: string, variable: string) {
-  const i = texto.indexOf('{', texto.indexOf(variable));
-  const src = texto.slice(i, texto.lastIndexOf('}') + 1)
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/'/g, '"')
-    .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":')
-    .replace(/,\s*([}\]])/g, '$1');
-  return JSON.parse(src);
-}
+// deno-lint-ignore no-explicit-any
+type Ajustes = Record<string, any>;
+// deno-lint-ignore no-explicit-any
+let cache: { t: number; productos: Map<string, Producto>; dispo: Dispo; transporte: Transporte; ajustes: Ajustes; filas: any } | null = null;
 
 async function cargarSitio() {
-  if (cache && Date.now() - cache.t < 60_000) return cache;
-  const [dataJs, dispoJs, transJs] = await Promise.all([
-    fetch(SITE + '/assets/data.js?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error('data.js ' + r.status); return r.text(); }),
-    fetch(SITE + '/assets/disponibilidad.js?t=' + Date.now()).then((r) => (r.ok ? r.text() : '')),
-    fetch(SITE + '/assets/transporte.js?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error('transporte.js ' + r.status); return r.text(); }),
+  if (cache && Date.now() - cache.t < 30_000) return cache;
+  const [prods, cats, coms, bloq, aj] = await Promise.all([
+    db.from('productos').select('*').order('orden'),
+    db.from('categorias').select('*').order('orden'),
+    db.from('comunas').select('*').eq('activa', true).order('orden'),
+    db.from('bloqueos').select('fecha, producto_id').gte('fecha', todayCL()),
+    db.from('ajustes').select('*').eq('id', 1).single(),
   ]);
-  const productos = new Map<string, Producto>();
-  const re = /id:\s*'([^']+)',\s*name:\s*'([^']*)'[\s\S]*?price:\s*(\d+)/g;
-  for (let m; (m = re.exec(dataJs));) productos.set(m[1], { id: m[1], name: m[2], price: Number(m[3]) });
-  if (productos.size === 0) throw new Error('catálogo vacío');
-
-  let dispo: Dispo = { diasAnticipacion: 3, mesesMaximo: 4, cerrado: [], ocupado: {}, comparten: [], bloqueoAutomatico: [] };
-  try {
-    dispo = { ...dispo, ...leerObjetoJs(dispoJs, 'PH_DISPONIBILIDAD') };
-  } catch (e) {
-    console.error('No se pudo leer disponibilidad.js; uso valores por defecto', e);
+  for (const r of [prods, cats, coms, bloq, aj]) if (r.error) throw r.error;
+  const catActiva = new Set((cats.data || []).filter((c) => c.activa).map((c) => c.id));
+  const activos = (prods.data || []).filter((p) => p.activo && catActiva.has(p.categoria));
+  const productos = new Map<string, Producto>(activos.map((p) => [p.id, { id: p.id, name: p.nombre, price: p.precio }]));
+  const grupos: Record<string, string[]> = {};
+  for (const p of prods.data || []) if (p.equipo) (grupos[p.equipo] ||= []).push(p.id);
+  const ocupado: Record<string, string[]> = {};
+  const cerrado: string[] = [];
+  for (const x of bloq.data || []) {
+    const f = String(x.fecha);
+    if (!x.producto_id) cerrado.push(f); else (ocupado[x.producto_id] ||= []).push(f);
   }
-  // Sin tarifas no se puede cobrar el flete: mejor fallar que cobrar de menos
-  const transporte: Transporte = { comunas: [], sinFlete: [], ...leerObjetoJs(transJs, 'PH_TRANSPORTE') };
-  if (!transporte.comunas.length) throw new Error('transporte.js sin comunas');
-  cache = { t: Date.now(), productos, dispo, transporte };
+  const dispo: Dispo = {
+    diasAnticipacion: aj.data.dias_anticipacion, mesesMaximo: aj.data.meses_maximo, cerrado, ocupado,
+    comparten: Object.values(grupos).filter((g) => g.length > 1),
+    bloqueoAutomatico: (prods.data || []).filter((p) => p.bloqueo_automatico).map((p) => p.id),
+  };
+  const transporte: Transporte = {
+    comunas: (coms.data || []).map((c) => ({ nombre: c.nombre, valor: c.valor })),
+    sinFlete: (prods.data || []).filter((p) => p.sin_flete).map((p) => p.id),
+  };
+  if (!transporte.comunas.length) throw new Error('sin comunas con tarifa');
+  cache = { t: Date.now(), productos, dispo, transporte, ajustes: aj.data, filas: { activos, cats: (cats.data || []).filter((c) => c.activa) } };
   return cache;
+}
+
+// Archivo JS para el sitio: mismo formato que tenían assets/data.js, disponibilidad.js y transporte.js
+async function datosJs(_req: Request) {
+  const { dispo, transporte, ajustes, filas } = await cargarSitio();
+  const pagadas = await fechasPagadas(dispo);
+  const ocupado: Record<string, string[]> = JSON.parse(JSON.stringify(dispo.ocupado));
+  for (const [id, fs] of Object.entries(pagadas)) for (const f of fs) (ocupado[id] ||= []).includes(f) || ocupado[id].push(f);
+  const catNombre = Object.fromEntries(filas.cats.map((c: { id: string; nombre: string }) => [c.id, c.nombre]));
+  // deno-lint-ignore no-explicit-any
+  const PH_PRODUCTS = filas.activos.map((p: any) => ({
+    id: p.id, name: p.nombre, category: p.categoria, categoryName: p.etiqueta || catNombre[p.categoria] || '', size: p.tamano, capacity: p.capacidad,
+    price: p.precio, ...(p.precio_antes ? { priceWas: p.precio_antes } : {}), tint: p.tint, badges: p.badges, images: p.imagenes,
+    img: p.imagenes[0] || null, short: p.corto, long: p.largo, includes: p.incluye,
+  }));
+  const PH_CATEGORIES = [{ id: 'all', name: 'Todo', icon: '✦' },
+    ...filas.cats.map((c: { id: string; nombre: string; icono: string }) => ({ id: c.id, name: c.nombre, icon: c.icono }))];
+  const js = `// Party House · datos del sitio (generado desde el panel)\n` +
+    `window.PH_PRODUCTS=${JSON.stringify(PH_PRODUCTS)};\nwindow.PH_CATEGORIES=${JSON.stringify(PH_CATEGORIES)};\n` +
+    `window.PH_DISPONIBILIDAD=${JSON.stringify({ ...dispo, ocupado })};\nwindow.PH_TRANSPORTE=${JSON.stringify(transporte)};\n` +
+    `window.PH_AJUSTES=${JSON.stringify({ garantia_monto: ajustes.garantia_monto, abono_pct: ajustes.abono_pct, recordatorio_dias: ajustes.recordatorio_dias })};\n`;
+  return new Response(js, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' } });
 }
 
 async function fechasPagadas(dispo: Dispo): Promise<Record<string, string[]>> {
@@ -311,7 +336,9 @@ async function recordatorios(req: Request) {
   if (!k?.valor || req.headers.get('x-cron-key') !== k.valor) return json(req, { error: 'no_autorizado' }, 401);
   const b = await req.json().catch(() => ({}));
   const hoy = todayCL();
-  let q = db.from('reservas').select('*').eq('estado', 'pagado').eq('garantia_estado', 'pendiente').gt('garantia_monto', 0);
+  const { ajustes } = await cargarSitio();
+  let q = db.from('reservas').select('*').eq('estado', 'pagado').eq('garantia_estado', 'pendiente').gt('garantia_monto', 0)
+    .not('cliente_email', 'is', null);
   if (b?.codigo) q = q.eq('codigo', String(b.codigo));
   const { data: lista, error } = await q;
   if (error) throw error;
@@ -319,7 +346,7 @@ async function recordatorios(req: Request) {
   for (const r of lista || []) {
     const fecha = (r.fechas as string[])[0];
     const dias = Math.round((Date.parse(fecha + 'T00:00:00Z') - Date.parse(hoy + 'T00:00:00Z')) / 86_400_000);
-    const enVentana = dias >= 1 && dias <= 7;
+    const enVentana = dias >= 1 && dias <= (ajustes.recordatorio_dias || 7);
     if ((!enVentana && !b?.forzar) || r.garantia_ultimo_aviso === hoy) { resultado.push({ codigo: r.codigo, dias, enviado: false }); continue; }
     try {
       const link = await linkGarantia(r);
@@ -372,7 +399,7 @@ async function crear(req: Request) {
     return json(req, { error: 'datos_cliente_invalidos' }, 400);
   }
 
-  const { productos, dispo, transporte } = await cargarSitio();
+  const { productos, dispo, transporte, ajustes } = await cargarSitio();
   const pagadas = await fechasPagadas(dispo);
   const lineas: Array<{ id: string; nombre: string; qty: number; fecha: string; precio: number }> = [];
   for (const it of items) {
@@ -395,12 +422,12 @@ async function crear(req: Request) {
 
   const productosTotal = lineas.reduce((s, l) => s + l.precio * l.qty, 0);
   const total = productosTotal + flete;
-  const abono = Math.round(total * ABONO);
+  const abono = Math.round(total * ajustes.abono_pct / 100);
   const codigo = codigoNuevo();
 
   mpToken(); // falla temprano si no está configurado
   const { data: res, error } = await db.from('reservas').insert({
-    codigo, items: lineas, fechas, total, abono, flete,
+    codigo, items: lineas, fechas, total, abono, flete, garantia_monto: ajustes.garantia_monto,
     cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email,
     comuna: cliente.comuna, notas: cliente.notas || null,
   }).select('id').single();
@@ -414,7 +441,7 @@ async function crear(req: Request) {
     body: JSON.stringify({
       items: [{
         id: codigo,
-        title: `Abono 50% reserva ${codigo} · Party House`,
+        title: `Abono ${ajustes.abono_pct}% reserva ${codigo} · Party House`,
         description: (`Evento ${fechaTxt} en ${cliente.comuna}: ` + lineas.map((l) => `${l.nombre} x${l.qty}`).join(', ') +
           (flete ? ` + flete y montaje` : '')).slice(0, 250),
         category_id: 'services',
@@ -496,6 +523,24 @@ async function contacto(req: Request) {
   return json(req, { ok: true });
 }
 
+// Panel: enviar (o reenviar) la confirmación por correo de una reserva. Requiere sesión de administrador.
+async function confirmar(req: Request) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: u } = await db.auth.getUser(token);
+  if (!u?.user) return json(req, { error: 'no_autorizado' }, 401);
+  const { data: adm } = await db.from('admins').select('user_id').eq('user_id', u.user.id).is('disabled_at', null).maybeSingle();
+  if (!adm) return json(req, { error: 'no_autorizado' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const { data: r } = await db.from('reservas').select('*').eq('codigo', clip(b.codigo, 20)).maybeSingle();
+  if (!r) return json(req, { error: 'no_encontrada' }, 404);
+  if (!r.cliente_email) return json(req, { error: 'sin_correo' }, 400);
+  await enviarCorreo(resendKey(), 'cliente-' + r.codigo + (b.reenviar ? '-' + Date.now() : ''), {
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoCliente(r, esPrueba()),
+  });
+  await db.from('reservas').update({ confirmacion_cliente_en: new Date().toISOString() }).eq('id', r.id);
+  return json(req, { ok: true });
+}
+
 async function disponibilidad(req: Request) {
   const { dispo } = await cargarSitio();
   return json(req, { ocupado: await fechasPagadas(dispo) });
@@ -512,6 +557,8 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && ruta === 'recordatorios') return await recordatorios(req);
     if (req.method === 'GET' && ruta === 'estado') return await estado(req, url);
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
+    if (req.method === 'GET' && ruta === 'datos.js') return await datosJs(req);
+    if (req.method === 'POST' && ruta === 'confirmar') return await confirmar(req);
     if (req.method === 'GET' && ruta === 'modo') {
       const t = Deno.env.get('MP_ACCESS_TOKEN') || '';
       return json(req, { modo: !t ? 'desactivado' : t.startsWith('TEST-') ? 'prueba' : 'produccion' });

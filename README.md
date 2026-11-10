@@ -11,7 +11,10 @@ party-house-site/
 ├── producto.html       # Ficha de producto (lee ?id= de la URL)
 ├── packs.html          # Packs / experiencias
 ├── carrito.html        # Carrito
-├── checkout.html       # Reserva / checkout (deriva a WhatsApp)
+├── checkout.html       # Reserva: pago del abono con Mercado Pago o WhatsApp
+├── pago.html           # Resultado del pago (abono y garantía)
+├── arma-tu-fiesta.html # Planificador de fiesta
+├── admin.html          # Panel de administración (assets/admin/*.js, assets/admin.css)
 ├── contacto.html       # Contacto
 ├── faq.html            # Preguntas frecuentes
 ├── condiciones.html    # Condiciones del arriendo
@@ -35,22 +38,32 @@ python3 -m http.server 8000
 
 > Conviene servirlo (no abrir los `.html` directo con `file://`) para que los enlaces y scripts funcionen bien.
 
-## Imágenes de producto
+## 🛠️ Panel de administración (`admin.html`)
 
-> **Importante:** las fichas de producto actualmente muestran **placeholders de color**. Los nombres de imagen en `assets/data.js` (campo `images`) vienen del export de Shopify pero los archivos **no están incluidos**.
->
-> Para mostrar fotos reales: sube las imágenes a `assets/img/` (o tu CDN) y ajusta cómo se resuelven en `assets/site.js` (función `PH.photo`, que usa `p.img` / `opts.src`).
+**https://partyhouse.cl/admin.html** · estilo Shopify, basado en el panel de Planeta 4 Patas.
+
+**Primer ingreso:** entra a `admin.html` → **¿Primera vez? Crear cuenta** con tu correo (ya está invitado) y una contraseña.
+Confirma el correo que llega y vuelve a ingresar.
+
+| Sección | Qué puedes hacer |
+|---|---|
+| **Inicio** | Reservas y arriendos del mes (vs mes anterior), próximos eventos, tareas: instalaciones de la semana, retiros pendientes, garantías por cobrar/devolver, saldos por cobrar y pagos no completados. |
+| **Reservas** | Pestañas (próximas, por instalar, por retirar, realizadas, pagos no completados, canceladas), búsqueda, exportar, imprimir hojas de instalación. |
+| **Detalle de reserva** | Etapas (por instalar → instalada → retirada), registrar pago del saldo, garantía (marcar pagada/devuelta, copiar link de pago), cambiar fecha (revisa disponibilidad), confirmar pagos hechos por otro medio, cancelar, WhatsApp listo por etapa, reenviar confirmación por correo, notas internas e historial. |
+| **Crear reserva** | Para reservas por WhatsApp/teléfono: productos con precio ajustable, flete por comuna (o manual), descuento, abono recibido y medio. Revisa la disponibilidad en vivo, bloquea la fecha y entra a los recordatorios de garantía. |
+| **Calendario** | Mes completo con las reservas de cada día. Toca un día para ver qué productos únicos están libres, **bloquear** un producto, **cerrar el día completo** o crear una reserva ese día. |
+| **Garantías** | Por cobrar, por devolver y pendientes de eventos pasados, con WhatsApp directo. |
+| **Productos** | Filtros, búsqueda, ficha con **fotos** (arrastrar y soltar, se optimizan solas), precio y precio "antes", textos, qué incluye, insignias, visible/oculto y reglas de reserva: **una sola unidad** (bloqueo automático), **equipo compartido** (carpas que comparte un pack) y **flete incluido**. |
+| **Categorías** | Crear, editar, ordenar y ocultar. |
+| **Clientes** | Generados desde las reservas: eventos, total, recurrentes, próximo evento, lo que más arriendan. |
+| **Análisis** | Cualquier rango (por fecha del evento o de reserva): arriendos por mes, productos, comunas, categorías, día de la semana, anticipación, conversión del pago online. |
+| **Configuración** | % de abono, monto de garantía, días de recordatorio, anticipación mínima y meses abiertos · **Flete por comuna** · **Administradores** (invitar y quitar acceso). |
+
+Los cambios de catálogo, flete, bloqueos y ajustes llegan al sitio en ~1 minuto (el sitio los lee de `pagos/datos.js`).
 
 ## WhatsApp
 
 El número de contacto está en `assets/site.js` (`PH.waLink`, variable `phone`). Cámbialo ahí si corresponde.
-
-## Disponibilidad de fechas (¡mantener al día!)
-
-El calendario de cada producto, el carrito, el checkout y el planificador leen `assets/disponibilidad.js`.
-Cada vez que confirmes una reserva, agrega la fecha (`'AAAA-MM-DD'`) bajo el id del producto en `ocupado`.
-Para feriados o vacaciones usa `cerrado` (bloquea todo). Se puede editar directo en GitHub con el lápiz.
-`comparten` agrupa productos que usan la misma carpa (ej. Party Cube 5×5 y Pack VIP 5×5).
 
 ## Arma tu fiesta (`arma-tu-fiesta.html`)
 
@@ -58,15 +71,15 @@ Planificador: el cliente elige tipo de celebración, invitados, nivel y fecha, y
 que puede agregar al carrito o cotizar por WhatsApp. Las reglas están en la función `recommend()` de esa página.
 La sección "Completa tu fiesta" del carrito usa `PH.suggestFor()` en `assets/site.js`.
 
-## Flete y montaje (`assets/transporte.js`)
+## Flete, disponibilidad y ajustes
 
-Tabla de comunas y valores que se suma al total del pedido; **el abono es el 50% de (productos + flete)**.
-La usan el checkout, el carrito, las preguntas frecuentes y el servidor de pagos (el cobro con Mercado Pago lee
-este mismo archivo del sitio publicado, así que lo que edites aquí es lo que se cobra). Se edita en GitHub con el lápiz.
-- "Otra comuna": no se puede pagar online; se cotiza por WhatsApp.
-- `sinFlete`: productos que ya incluyen su transporte (si el pedido trae solo esos, no paga flete).
-- **Cada pedido es para un solo día**: el carrito aplica la misma fecha a todos los productos y el servidor rechaza
-  pedidos con varias fechas.
+Todo se edita en el panel (Configuración → Flete por comuna, Calendario, Productos, Configuración).
+- **Flete:** se suma al total; el abono es el % configurado de (productos + flete). "Otra comuna" se cotiza por WhatsApp.
+- **Un pedido = un día:** el carrito aplica una fecha a todo el pedido y el servidor rechaza varias fechas.
+- **Disponibilidad:** reservas confirmadas bloquean solas los productos de "una sola unidad" (y su equipo compartido);
+  además puedes bloquear productos o cerrar días desde el Calendario.
+- `assets/data.js`, `disponibilidad.js` y `transporte.js` quedan **solo como respaldo** si el servidor no responde
+  (pueden quedar desactualizados; el cobro siempre usa los datos de la base).
 
 ## Pago del abono con Mercado Pago
 

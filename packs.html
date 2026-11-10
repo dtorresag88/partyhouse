@@ -120,11 +120,11 @@
         <div class="pack-prices">
           <div class="pack-prices-label">Precios</div>
           <div class="price-tier">
-            <div class="pt-amount">$165.000</div>
+            <div class="pt-amount" data-precio="party-cube-5x5-mts">$165.000</div>
             <div class="pt-size">Carpa<br/>5×5 mts</div>
           </div>
           <div class="price-tier">
-            <div class="pt-amount">$260.000</div>
+            <div class="pt-amount" data-precio="party-house-5x8-mts">$260.000</div>
             <div class="pt-size">Carpa<br/>5×8 mts</div>
           </div>
         </div>
@@ -164,11 +164,11 @@
         <div class="pack-prices">
           <div class="pack-prices-label">Precios</div>
           <div class="price-tier">
-            <div class="pt-amount">$245.000</div>
+            <div class="pt-amount" data-precio="pack-vip-lounge-5x5-mts">$245.000</div>
             <div class="pt-size">Carpa<br/>5×5 mts</div>
           </div>
           <div class="price-tier">
-            <div class="pt-amount">$330.000</div>
+            <div class="pt-amount" data-precio="pack-vip-lounge-5x8-mts">$330.000</div>
             <div class="pt-size">Carpa<br/>5×8 mts</div>
           </div>
         </div>
@@ -234,7 +234,8 @@
 <div id="footer-slot"></div>
 <div id="wa-slot"></div>
 
-<script src="assets/data.js"></script>
+<script src="https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos/datos.js"></script>
+<script>/* respaldo si el servidor no responde */ window.PH_PRODUCTS || document.write('<script src="assets/data.js"><\/script><script src="assets/disponibilidad.js"><\/script><script src="assets/transporte.js"><\/script>');</script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>

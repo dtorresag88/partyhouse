@@ -105,9 +105,8 @@
 <div id="footer-slot"></div>
 <div id="wa-slot"></div>
 
-<script src="assets/data.js"></script>
-<script src="assets/disponibilidad.js"></script>
-<script src="assets/transporte.js"></script>
+<script src="https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos/datos.js"></script>
+<script>/* respaldo si el servidor no responde */ window.PH_PRODUCTS || document.write('<script src="assets/data.js"><\/script><script src="assets/disponibilidad.js"><\/script><script src="assets/transporte.js"><\/script>');</script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -120,7 +119,7 @@
     const productos = PH.cartTotal();
     const flete = comuna ? PH.flete(comuna, cart) : (PH.flete('', cart) === 0 ? 0 : null);
     const total = productos + (flete || 0);
-    const abono = Math.round(total * 0.5);
+    const abono = Math.round(total * PH.abonoPct() / 100);
     return { productos, flete, total, abono, saldo: total - abono };
   }
 
@@ -172,8 +171,8 @@
         <form id="co-form" novalidate>
           <div class="wa-note">
             <div class="wa-ico"></div>
-            <div data-si="mp" style="display:none">Paga el <strong>abono del 50%</strong> con <strong>Mercado Pago</strong> (crédito, débito o saldo) y tu fecha queda asegurada al instante. Si prefieres, envíanos el pedido por <strong>WhatsApp</strong> y lo coordinamos.</div>
-            <div data-si="wa">Al reservar te abrimos una conversación de <strong>WhatsApp</strong> con todo tu pedido y tus datos ya escritos. Solo nos confirmas la fecha y el <strong>abono del 50%</strong> para asegurar tu día.</div>
+            <div data-si="mp" style="display:none">Paga el <strong>abono del ${PH.abonoPct()}%</strong> con <strong>Mercado Pago</strong> (crédito, débito o saldo) y tu fecha queda asegurada al instante. Si prefieres, envíanos el pedido por <strong>WhatsApp</strong> y lo coordinamos.</div>
+            <div data-si="wa">Al reservar te abrimos una conversación de <strong>WhatsApp</strong> con todo tu pedido y tus datos ya escritos. Solo nos confirmas la fecha y el <strong>abono del ${PH.abonoPct()}%</strong> para asegurar tu día.</div>
           </div>
 
           <div class="co-section">
@@ -211,7 +210,7 @@
 
           <div style="padding:14px 16px;border:1px dashed var(--line);border-radius:12px;font-size:13px;color:var(--ink-dim);line-height:1.5;margin-bottom:18px">
             <strong style="color:var(--ink)">¿Cómo funciona?</strong><br/>
-            Reservas con el <strong style="color:var(--acid)">50% del total</strong> (productos + flete y montaje): <strong style="color:var(--ink)" data-v="abono">${PH.formatCLP(t.abono)}</strong>. El saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento, antes de la instalación.<br/>
+            Reservas con el <strong style="color:var(--acid)">${PH.abonoPct()}% del total</strong> (productos + flete y montaje): <strong style="color:var(--ink)" data-v="abono">${PH.formatCLP(t.abono)}</strong>. El saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento, antes de la instalación.<br/>
             <span data-v="nota-flete">El flete y montaje se suma según la comuna que elijas.</span>
           </div>
 
@@ -234,11 +233,11 @@
             <div class="val" data-v="total">${PH.formatCLP(t.total)}</div>
           </div>
           <div class="summary-abono">
-            <div class="lbl">Abono para reservar (50%)</div>
+            <div class="lbl">Abono para reservar (${PH.abonoPct()}%)</div>
             <div class="val" data-v="abono">${PH.formatCLP(t.abono)}</div>
           </div>
           <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento</div>
-          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(100000)}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
+          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(PH.garantia())}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
         </aside>
       </div>`;
 
@@ -314,7 +313,7 @@ ${lines}
 Productos: ${PH.formatCLP(t.productos)}
 Flete y montaje (${comuna}): ${fleteTxt}
 Total: ${PH.formatCLP(t.total)}${t.flete === null ? ' + flete' : ''}
-Abono 50%: ${PH.formatCLP(t.abono)}
+Abono ${PH.abonoPct()}%: ${PH.formatCLP(t.abono)}
 Saldo el día del evento: ${PH.formatCLP(t.saldo)}
 
 — Mis datos —

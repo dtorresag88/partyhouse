@@ -53,7 +53,8 @@
 <div id="footer-slot"></div>
 <div id="wa-slot"></div>
 
-<script src="assets/data.js"></script>
+<script src="https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos/datos.js"></script>
+<script>/* respaldo si el servidor no responde */ window.PH_PRODUCTS || document.write('<script src="assets/data.js"><\/script><script src="assets/disponibilidad.js"><\/script><script src="assets/transporte.js"><\/script>');</script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -113,7 +114,7 @@
 
     // Vuelta desde el pago de la garantía reembolsable (referencia PH-XXXXXXXX-G)
     if(codigo.endsWith('-G')){
-      const monto = PH.formatCLP(r.garantia_monto || 100000);
+      const monto = PH.formatCLP(r.garantia_monto || PH.garantia());
       if(r.garantia_estado === 'pagada' || r.garantia_estado === 'devuelta'){
         pintar('ok', '✓', '¡Garantía <span class="acid">recibida!</span>',
           `Recibimos tu garantía reembolsable de ${monto}. Ya no te llegarán más recordatorios. Te la devolvemos íntegra después del retiro si todo está en orden.`,

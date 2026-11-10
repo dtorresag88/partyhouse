@@ -105,9 +105,8 @@
 <div id="footer-slot"></div>
 <div id="wa-slot"></div>
 
-<script src="assets/data.js"></script>
-<script src="assets/disponibilidad.js"></script>
-<script src="assets/transporte.js"></script>
+<script src="https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos/datos.js"></script>
+<script>/* respaldo si el servidor no responde */ window.PH_PRODUCTS || document.write('<script src="assets/data.js"><\/script><script src="assets/disponibilidad.js"><\/script><script src="assets/transporte.js"><\/script>');</script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -218,7 +217,7 @@
     }).join('');
 
     const subtotal = PH.cartTotal();
-    const abono = Math.round(subtotal * 0.5);
+    const abono = Math.round(subtotal * PH.abonoPct() / 100);
     const noFechas = cart.filter(c => !c.date).length;
 
     root.innerHTML = `
@@ -237,10 +236,10 @@
             <div class="val">${PH.formatCLP(subtotal)}</div>
           </div>
           <div class="summary-abono">
-            <div class="lbl">Abono 50% (+ mitad del flete)</div>
+            <div class="lbl">Abono ${PH.abonoPct()}% (+ parte del flete)</div>
             <div class="val">${PH.formatCLP(abono)}</div>
           </div>
-          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(100000)}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
+          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(PH.garantia())}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
           <a class="btn btn-primary" href="checkout.html">Continuar a la reserva →</a>
           <a class="btn btn-ghost" href="catalogo.html">Seguir armando →</a>
           <div class="summary-note">El saldo restante se cancela el día del evento.</div>

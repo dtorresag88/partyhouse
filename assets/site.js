@@ -279,6 +279,10 @@
     return PH.unavailableReason(productId, dateStr) === null;
   };
 
+  // ============ AJUSTES DEL PANEL (abono %, garantía) ============
+  PH.abonoPct = function(){ return ((window.PH_AJUSTES || {}).abono_pct) || 50; };
+  PH.garantia = function(){ const g = (window.PH_AJUSTES || {}).garantia_monto; return g == null ? 100000 : g; };
+
   // ============ FLETE Y MONTAJE (assets/transporte.js) ============
   PH.OTRA_COMUNA = 'Otra comuna (te cotizamos el flete)';
   PH.comunas = function(){ return ((window.PH_TRANSPORTE || {}).comunas || []); };
@@ -417,6 +421,9 @@
     PH.initFAQ();
     PH.initNewsletter();
     PH.loadRemoteAvailability();
+    // Precios escritos en las páginas (home, packs): se actualizan con los del panel
+    document.querySelectorAll('[data-precio]').forEach(el => { const p = PH.getProduct(el.dataset.precio); if(p) el.textContent = PH.formatCLP(p.price); });
+    document.querySelectorAll('[data-precio-antes]').forEach(el => { const p = PH.getProduct(el.dataset.precioAntes); if(!p) return; if(p.priceWas) el.textContent = PH.formatCLP(p.priceWas); else el.hidden = true; });
   });
 
 })();
