@@ -58,6 +58,22 @@ Planificador: el cliente elige tipo de celebración, invitados, nivel y fecha, y
 que puede agregar al carrito o cotizar por WhatsApp. Las reglas están en la función `recommend()` de esa página.
 La sección "Completa tu fiesta" del carrito usa `PH.suggestFor()` en `assets/site.js`.
 
+## Pago del abono con Mercado Pago
+
+El checkout ofrece **"Pagar abono con Mercado Pago"** (Checkout Pro) además de reservar por WhatsApp.
+
+- **Servidor:** Supabase, proyecto `partyhouse` (`uxhbzgkgiefjggxcapdq`), Edge Function `pagos`.
+  Código en `supabase/functions/pagos/index.ts`; tabla `reservas` en `supabase/migrations/`.
+- **Seguridad:** el servidor recalcula los precios leyendo `assets/data.js` del sitio publicado y valida las
+  fechas con `assets/disponibilidad.js`, así que nadie puede pagar un monto adulterado. La tabla `reservas`
+  no es accesible desde el navegador (solo la función).
+- **Al pagarse un abono**, Mercado Pago avisa al webhook, la reserva queda `pagado` y la fecha se bloquea sola
+  para los productos de `bloqueoAutomatico`. El cliente vuelve a `pago.html`, que muestra el comprobante.
+- **Ver reservas:** Supabase → Table Editor → `reservas` (o tu panel de Mercado Pago, buscando el código `PH-…`).
+- **Secretos** (Supabase → Edge Functions → Secrets): `MP_ACCESS_TOKEN` (obligatorio) y
+  `MP_WEBHOOK_SECRET` (opcional, valida la firma de las notificaciones).
+- **Pasar a producción:** reemplaza `MP_ACCESS_TOKEN` por el Access Token de producción (`APP_USR-…`).
+
 ## Analítica (opcional)
 
 `PH.track()` envía eventos (`agregar_carrito`, `click_whatsapp`, `reserva_lista`, `planificador_agregar`,

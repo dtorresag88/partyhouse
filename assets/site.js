@@ -211,9 +211,30 @@
     return 'https://wa.me/' + phone + (message ? '?text=' + encodeURIComponent(message) : '');
   };
 
+  // ============ PAGOS (Mercado Pago vía Supabase Edge Function) ============
+  PH.PAGOS_URL = 'https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos';
+
   // ============ DISPONIBILIDAD ============
   // Datos en assets/disponibilidad.js (lo edita el dueño). Fechas en formato 'AAAA-MM-DD'.
+  // Además se suman en vivo las fechas ya pagadas con Mercado Pago (evento 'ph:dispo' al llegar).
   function dispo(){ return window.PH_DISPONIBILIDAD || {}; }
+  PH.loadRemoteAvailability = function(){
+    if(!window.PH_DISPONIBILIDAD || PH._dispoRemota) return PH._dispoRemota;
+    PH._dispoRemota = fetch(PH.PAGOS_URL + '/disponibilidad')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if(!data || !data.ocupado) return;
+        const cfg = window.PH_DISPONIBILIDAD;
+        cfg.ocupado = cfg.ocupado || {};
+        Object.keys(data.ocupado).forEach(id => {
+          const arr = cfg.ocupado[id] = cfg.ocupado[id] || [];
+          data.ocupado[id].forEach(d => { if(!arr.includes(d)) arr.push(d); });
+        });
+        window.dispatchEvent(new Event('ph:dispo'));
+      })
+      .catch(() => {});
+    return PH._dispoRemota;
+  };
   PH.toISODate = function(d){
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   };
@@ -350,6 +371,7 @@
     PH.initNav();
     PH.initFAQ();
     PH.initNewsletter();
+    PH.loadRemoteAvailability();
   });
 
 })();

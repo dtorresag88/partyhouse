@@ -29,6 +29,17 @@ window.PH_DISPONIBILIDAD = {
     'maquina-de-sour-frozen-granizado': []
   },
 
+  // Productos de los que tienes UNA sola unidad: cuando un cliente paga el abono con
+  // Mercado Pago, la fecha se bloquea sola para ellos (no hace falta anotarla en "ocupado").
+  // Los que no estén aquí (sillas, cubos LED, etc.) no se bloquean automáticamente.
+  bloqueoAutomatico: [
+    'party-cube-5x5-mts',
+    'party-house-5x8-mts',
+    'pack-vip-lounge-5x5-mts',
+    'pack-vip-lounge-5x8-mts',
+    'maquina-de-sour-frozen-granizado'
+  ],
+
   // Productos que usan el mismo equipo físico: si uno está ocupado, los otros también.
   // (Ej.: el Pack VIP 5×5 usa la misma carpa que el Party Cube 5×5.) Ajusta si tienes más de una carpa.
   comparten: [

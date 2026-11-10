@@ -345,6 +345,11 @@
 
     renderCal();
     updateSelectedLabel();
+    // Fechas pagadas online llegan después: si la fecha elegida quedó tomada, se limpia.
+    window.addEventListener('ph:dispo', () => {
+      if(selected && isUnavailable(selected)){ selected = null; updateSelectedLabel(); }
+      renderCal();
+    });
   }
 </script>
 </body>

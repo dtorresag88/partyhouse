@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Estado de tu pago — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .pay{padding:56px 0 96px}
+  .pay-card{max-width:640px;margin:0 auto;border:1px solid var(--line);border-radius:24px;background:var(--card);padding:36px 30px;text-align:center}
+  .pay-card.ok{border-color:var(--success)}
+  .pay-card.warn{border-color:var(--orange)}
+  .pay-card.bad{border-color:var(--danger)}
+  .pay-ico{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;margin:0 auto 20px;font-size:36px;font-weight:900;background:var(--bg-2)}
+  .ok .pay-ico{background:var(--success);color:#04331f}
+  .warn .pay-ico{background:var(--orange);color:#2b1200}
+  .bad .pay-ico{background:var(--danger);color:#fff}
+  .pay-card h1{font-family:"Archivo Black";font-size:clamp(32px,5vw,48px);letter-spacing:-0.02em;line-height:0.95;margin:0 0 12px}
+  .pay-card p{color:var(--ink-dim);line-height:1.55;margin:0 auto 22px;max-width:46ch}
+  .code{display:inline-block;font-family:"JetBrains Mono";font-size:13px;letter-spacing:0.12em;border:1px dashed var(--acid);color:var(--acid);padding:8px 14px;border-radius:10px;margin-bottom:22px}
+  .pay-items{text-align:left;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin:0 0 18px}
+  .pay-item{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:14px}
+  .pay-item span:last-child{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);white-space:nowrap}
+  .pay-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;color:var(--ink-dim);text-align:left}
+  .pay-row strong{color:var(--ink)}
+  .pay-row.big strong{font-family:"Archivo Black";color:var(--acid);font-size:20px}
+  .pay-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+  .pay-actions .btn{width:100%;justify-content:center}
+  .btn-wa{background:#25D366;color:#0a3d1c}
+  .spinner{width:42px;height:42px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--acid);animation:spin 0.9s linear infinite;margin:0 auto 18px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="pay">
+  <div class="wrap">
+    <div class="pay-card" id="pay-card" aria-live="polite">
+      <div class="spinner"></div>
+      <h1>Revisando tu pago…</h1>
+      <p>Estamos confirmando con Mercado Pago. Esto toma unos segundos.</p>
+    </div>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({});
+
+  const qs = new URLSearchParams(location.search);
+  let guardado = {};
+  try { guardado = JSON.parse(localStorage.getItem('ph_pago') || '{}'); } catch(e){}
+  const codigo = (qs.get('external_reference') || guardado.codigo || '').toUpperCase();
+  const paymentId = qs.get('payment_id') || qs.get('collection_id') || '';
+  const mpStatus = qs.get('status') || qs.get('collection_status') || '';
+  const card = document.getElementById('pay-card');
+  let intentos = 0;
+
+  const fmtFecha = d => {
+    const s = new Date(d + 'T00:00').toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  function pintar(cls, ico, titulo, texto, extra){
+    card.className = 'pay-card ' + cls;
+    card.innerHTML = `<div class="pay-ico">${ico}</div><h1>${titulo}</h1><p>${texto}</p>${extra || ''}`;
+  }
+
+  function detalle(r){
+    const items = r.items.map(i => `<div class="pay-item"><span>${i.nombre} ×${i.qty}</span><span>${fmtFecha(i.fecha)}</span></div>`).join('');
+    return `<div class="pay-items">${items}</div>
+      <div class="pay-row"><span>Total del arriendo</span><strong>${PH.formatCLP(r.total)}</strong></div>
+      <div class="pay-row big"><span>Abono pagado</span><strong>${PH.formatCLP(r.monto_pagado || r.abono)}</strong></div>
+      <div class="pay-row"><span>Saldo el día del evento</span><strong>${PH.formatCLP(r.total - (r.monto_pagado || r.abono))}</strong></div>
+      <div class="pay-row"><span>+ Transporte</span><strong>Según comuna (${r.comuna})</strong></div>`;
+  }
+
+  function botonesReintento(){
+    return `<div class="pay-actions">
+      <a class="btn btn-primary" href="checkout.html">Volver a intentar el pago →</a>
+      <a class="btn btn-ghost" href="${PH.waLink('¡Hola Party House! Tuve un problema pagando el abono de mi reserva ' + codigo + '. ¿Me ayudan?')}" target="_blank" rel="noopener">Reservar por WhatsApp</a>
+    </div>`;
+  }
+
+  async function revisar(){
+    if(!/^PH-[A-Z0-9]{8}$/.test(codigo)){
+      pintar('bad', '?', 'No encontramos tu reserva', 'Si pagaste, no te preocupes: escríbenos por WhatsApp con el comprobante de Mercado Pago y lo revisamos al tiro.', botonesReintento());
+      return;
+    }
+    let r;
+    try {
+      const resp = await fetch(PH.PAGOS_URL + '/estado?codigo=' + encodeURIComponent(codigo) + (paymentId ? '&payment_id=' + encodeURIComponent(paymentId) : ''));
+      r = await resp.json();
+      if(!resp.ok) throw r;
+    } catch(e){
+      if(++intentos < 4) return setTimeout(revisar, 3000);
+      pintar('warn', '!', 'No pudimos confirmar tu pago', 'Hubo un problema de conexión. Si el cobro aparece en tu Mercado Pago, la reserva está registrada: escríbenos por WhatsApp con tu código.', `<div class="code">${codigo}</div>` + botonesReintento());
+      return;
+    }
+
+    if(r.estado === 'pagado'){
+      try { localStorage.removeItem('ph_cart_v1'); localStorage.removeItem('ph_pago'); } catch(e){}
+      PH.updateCartBadge();
+      const msg = `¡Hola Party House! 🎉 Pagué el abono de mi reserva.\n\nCódigo: ${r.codigo}${paymentId ? '\nPago Mercado Pago: #' + paymentId : ''}\n` +
+        r.items.map(i => `• ${i.nombre} x${i.qty} — ${fmtFecha(i.fecha)}`).join('\n') +
+        `\n\nAbono pagado: ${PH.formatCLP(r.monto_pagado || r.abono)}\nComuna: ${r.comuna}\n\n¿Coordinamos la dirección y el horario de instalación?`;
+      pintar('ok', '✓', '¡Tu fiesta está <span class="acid">reservada!</span>',
+        'Recibimos tu abono y tu fecha quedó bloqueada. Envíanos el comprobante por WhatsApp para coordinar dirección y horario de instalación.',
+        `<div class="code">${r.codigo}</div>${detalle(r)}
+         <div class="pay-actions">
+           <a class="btn btn-wa" href="${PH.waLink(msg)}" target="_blank" rel="noopener">Enviar comprobante por WhatsApp →</a>
+           <button class="btn btn-ghost" id="ics" type="button">📅 Guardar la fecha en mi calendario</button>
+         </div>`);
+      document.getElementById('ics').onclick = () => PH.downloadICS(r.fechas.map(f => ({
+        date: f,
+        title: '🎉 Mi fiesta con Party House',
+        description: 'Reserva ' + r.codigo + ' (abono pagado)\n' + r.items.filter(i => i.fecha === f).map(i => i.nombre + ' x' + i.qty).join('\n') + '\n\nWhatsApp Party House: +56 9 5698 1681'
+      })));
+      if(!sessionStorage.getItem('ph_celebrado_' + r.codigo)){
+        PH.celebrate({ particleCount: 180, spread: 100 });
+        PH.track('pago_mp_aprobado', { total: r.total, abono: r.abono });
+        try { sessionStorage.setItem('ph_celebrado_' + r.codigo, '1'); } catch(e){}
+      }
+      return;
+    }
+
+    if(r.estado === 'rechazado' || mpStatus === 'rejected'){
+      pintar('bad', '✕', 'El pago no se completó', 'Mercado Pago rechazó el pago. Tu carrito sigue guardado: puedes intentar con otro medio de pago o reservar por WhatsApp.', botonesReintento());
+      return;
+    }
+
+    if(['pending', 'in_process'].includes(mpStatus) || ['pending', 'in_process'].includes(r.mp_status)){
+      pintar('warn', '⏳', 'Tu pago está en proceso', 'Mercado Pago aún está procesando el pago (puede tardar si pagaste en efectivo o con transferencia). Te confirmamos apenas se acredite; guarda tu código.',
+        `<div class="code">${r.codigo}</div><div class="pay-actions"><a class="btn btn-ghost" href="${PH.waLink('¡Hola Party House! Mi pago de la reserva ' + r.codigo + ' quedó en proceso.')}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div>`);
+      if(++intentos < 12) setTimeout(revisar, 5000);
+      return;
+    }
+
+    // Volvió sin pagar (cerró o canceló el checkout)
+    pintar('warn', '!', 'No completaste el pago', 'Tu reserva no quedó confirmada todavía. Tu carrito sigue guardado: puedes volver a intentarlo o reservar por WhatsApp.', botonesReintento());
+  }
+
+  revisar();
+</script>
+</body>
+</html>
