@@ -41,3 +41,4 @@ alter table public.config enable row level security;
 revoke all on public.config from anon, authenticated;
 alter table public.reservas add column aviso_enviado_en timestamptz;
 alter table public.reservas add column confirmacion_cliente_en timestamptz;
+alter table public.reservas add column flete integer not null default 0 check (flete >= 0);

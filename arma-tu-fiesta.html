@@ -275,8 +275,15 @@
   document.getElementById('add-all').addEventListener('click', () => {
     const sel = selected(recommend(state));
     if(!sel.length) return;
+    // Cada pedido es para un solo día
+    const fechaCarrito = PH.cartDate();
+    if(state.date && fechaCarrito && state.date !== fechaCarrito){
+      PH.toast('Tu carrito ya es para el ' + PH.fmtFecha(fechaCarrito) + '. Elige esa fecha o vacía el carrito: cada pedido es para un solo día.', 'error');
+      return;
+    }
+    const fecha = state.date || fechaCarrito;
     sel.forEach(r => {
-      const d = state.date && PH.isAvailable(r.id, state.date) ? state.date : null;
+      const d = fecha && PH.isAvailable(r.id, fecha) ? fecha : null;
       PH.addToCart(r.id, { qty: r.qty, date: d, silent: true });
     });
     PH.track('planificador_agregar', { tipo: state.type, invitados: state.guests, nivel: state.level });

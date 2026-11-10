@@ -18,6 +18,12 @@
   PH.addToCart = function(productId, opts){
     opts = opts || {};
     const cart = PH.getCart();
+    // Cada pedido es para un solo día
+    const otra = opts.date && cart.find(c => c.date && c.date !== opts.date);
+    if(otra){
+      PH.toast('Tu pedido es para el ' + PH.fmtFecha(otra.date) + '. Cada pedido es para un solo día: elige esa fecha o vacía el carrito.', 'error');
+      return false;
+    }
     const existing = cart.find(c => c.id === productId && c.date === (opts.date||null));
     if(existing){ existing.qty += (opts.qty||1); }
     else {
@@ -29,6 +35,7 @@
       PH.celebrate({ particleCount: 60, spread: 60 });
     }
     PH.track('agregar_carrito', { producto: productId });
+    return true;
   };
   PH.removeFromCart = function(productId, date){
     let cart = PH.getCart();
@@ -270,6 +277,35 @@
   };
   PH.isAvailable = function(productId, dateStr){
     return PH.unavailableReason(productId, dateStr) === null;
+  };
+
+  // ============ FLETE Y MONTAJE (assets/transporte.js) ============
+  PH.OTRA_COMUNA = 'Otra comuna (te cotizamos el flete)';
+  PH.comunas = function(){ return ((window.PH_TRANSPORTE || {}).comunas || []); };
+  // Devuelve el valor del flete, 0 si el pedido no lo paga, o null si hay que cotizarlo.
+  PH.flete = function(comuna, cart){
+    const cfg = window.PH_TRANSPORTE || {};
+    cart = cart || PH.getCart();
+    const sin = cfg.sinFlete || [];
+    if(cart.length && cart.every(c => sin.includes(c.id))) return 0;
+    const c = PH.comunas().find(x => x.nombre === comuna);
+    return c ? c.valor : null;
+  };
+  PH.fleteDesde = function(){
+    const v = PH.comunas().map(c => c.valor);
+    return v.length ? Math.min.apply(null, v) : null;
+  };
+
+  // ============ UN PEDIDO = UN DÍA ============
+  PH.cartDate = function(){
+    const d = PH.getCart().map(c => c.date).filter(Boolean);
+    return d.length ? d[0] : null;
+  };
+  PH.cartDates = function(){
+    return Array.from(new Set(PH.getCart().map(c => c.date).filter(Boolean)));
+  };
+  PH.fmtFecha = function(d){
+    return new Date(d + 'T00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   // ============ "COMPLETA TU FIESTA" (venta cruzada) ============

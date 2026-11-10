@@ -55,7 +55,7 @@
           </div>
           <div class="faq-item">
             <div class="faq-q">¿En qué comunas instalan? <span class="plus">+</span></div>
-            <div class="faq-a">Instalamos solo en comunas dentro de Santiago, RM. Las Condes, La Reina, Lo Barnechea, Chicureo, Padre Hurtado, Talagante y alrededores entran sin cargo extra; consúltanos por otras comunas.</div>
+            <div class="faq-a">Instalamos en Santiago, RM. El <strong>flete y montaje</strong> depende de la comuna y se suma al total (lo ves calculado al elegir tu comuna en la reserva):<span id="tabla-flete"></span> ¿Tu comuna no está? Escríbenos y te cotizamos el flete.</div>
           </div>
           <div class="faq-item">
             <div class="faq-q">¿Debo dejar garantía? <span class="plus">+</span></div>
@@ -112,8 +112,19 @@
 <div id="wa-slot"></div>
 
 <script src="assets/data.js"></script>
+<script src="assets/transporte.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
-<script>PH_mountChrome({active:'faq'});</script>
+<script>
+  PH_mountChrome({active:'faq'});
+  // Tabla de flete desde assets/transporte.js (siempre al día)
+  (function(){
+    const el = document.getElementById('tabla-flete');
+    if(!el || !window.PH_TRANSPORTE) return;
+    el.innerHTML = '<span style="display:block;margin:10px 0">' + PH_TRANSPORTE.comunas.map(c =>
+      '<span style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding:4px 0"><span>' + c.nombre +
+      '</span><strong>' + PH.formatCLP(c.valor) + '</strong></span>').join('') + '</span>';
+  })();
+</script>
 </body>
 </html>

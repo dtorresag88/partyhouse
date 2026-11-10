@@ -107,6 +107,7 @@
 
 <script src="assets/data.js"></script>
 <script src="assets/disponibilidad.js"></script>
+<script src="assets/transporte.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -117,17 +118,24 @@
     const day = String(d.getDate()).padStart(2,'0');
     return d.getFullYear()+'-'+m+'-'+day;
   }
-  // Cambiar la fecha de un item (fusiona si ya existe el mismo producto en esa fecha)
-  function setItemDate(id, oldDate, newDate){
+  // Cada pedido es para un solo día: la fecha elegida se aplica a todo el carrito
+  // (fusiona productos repetidos). Devuelve false si algún producto no está libre ese día.
+  function setOrderDate(newDate){
     const cart = PH.getCart();
-    const o = oldDate || null, n = newDate || null;
-    if(o === n) return;
-    const item = cart.find(c => c.id===id && (c.date||null)===o);
-    if(!item) return;
-    const dup = cart.find(c => c!==item && c.id===id && (c.date||null)===n);
-    if(dup){ dup.qty += item.qty; cart.splice(cart.indexOf(item),1); }
-    else { item.date = n; }
-    PH.saveCart(cart);
+    const ocupado = cart.find(c => !PH.isAvailable(c.id, newDate));
+    if(ocupado){
+      const p = PH.getProduct(ocupado.id);
+      PH.toast((p ? p.name + ': ' : '') + PH.unavailableReason(ocupado.id, newDate) + '. Elige otro día.', 'error');
+      return false;
+    }
+    const merged = [];
+    cart.forEach(c => {
+      const dup = merged.find(m => m.id === c.id);
+      if(dup) dup.qty += c.qty;
+      else merged.push(Object.assign({}, c, { date: newDate }));
+    });
+    PH.saveCart(merged);
+    return true;
   }
 
   function upsellHtml(cart){
@@ -222,15 +230,15 @@
 
         <aside class="summary">
           <h3>Resumen</h3>
-          <div class="summary-row"><span>Subtotal</span><strong>${PH.formatCLP(subtotal)}</strong></div>
-          <div class="summary-row"><span>Instalación</span><strong style="color:var(--acid)">Incluida</strong></div>
+          <div class="summary-row"><span>Productos</span><strong>${PH.formatCLP(subtotal)}</strong></div>
+          <div class="summary-row"><span>Flete y montaje</span><strong>${PH.flete('', cart) === 0 ? '<span style="color:var(--acid)">Incluido</span>' : 'Desde ' + PH.formatCLP(PH.fleteDesde() || 0) + ' · se calcula con tu comuna'}</strong></div>
           <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
           <div class="summary-total">
-            <div class="lbl">// TOTAL</div>
+            <div class="lbl">// TOTAL PRODUCTOS</div>
             <div class="val">${PH.formatCLP(subtotal)}</div>
           </div>
           <div class="summary-abono">
-            <div class="lbl">Abono para reservar (50%)</div>
+            <div class="lbl">Abono 50% (+ mitad del flete)</div>
             <div class="val">${PH.formatCLP(abono)}</div>
           </div>
           <a class="btn btn-primary" href="checkout.html">Continuar a la reserva →</a>
@@ -262,10 +270,9 @@
         // En Chrome/Safari el indicador estirado abre el calendario; esto cubre Firefox.
         dateInput.addEventListener('click', openPicker);
         dateInput.addEventListener('change', () => {
-          const why = PH.unavailableReason(id, dateInput.value);
-          if(why){ PH.toast(why, 'error'); dateInput.value = date || ''; return; }
-          setItemDate(id, date, dateInput.value || null);
-          if(dateInput.value) PH.toast('✓ Fecha agregada', 'success');
+          if(!dateInput.value) return;
+          if(!setOrderDate(dateInput.value)){ dateInput.value = date || ''; return; }
+          PH.toast(PH.getCart().length > 1 ? '✓ Fecha del evento aplicada a todo el pedido' : '✓ Fecha agregada', 'success');
         });
       }
       el.querySelector('[data-act="dec"]').addEventListener('click', () => {

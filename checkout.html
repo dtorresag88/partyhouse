@@ -107,12 +107,22 @@
 
 <script src="assets/data.js"></script>
 <script src="assets/disponibilidad.js"></script>
+<script src="assets/transporte.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
   PH_mountChrome({active:'catalogo'});
 
-  const COMUNAS = ['Las Condes','La Reina','Lo Barnechea','Vitacura','Ñuñoa','Providencia','Peñalolén','Macul','La Florida','Maipú','Colina / Chicureo','Padre Hurtado','Talagante','Otra (Región Metropolitana)'];
+  // Totales del pedido según la comuna elegida (flete de assets/transporte.js).
+  // flete === null → comuna sin tarifa ("Otra") o aún no elegida.
+  function totales(comuna){
+    const cart = PH.getCart();
+    const productos = PH.cartTotal();
+    const flete = comuna ? PH.flete(comuna, cart) : (PH.flete('', cart) === 0 ? 0 : null);
+    const total = productos + (flete || 0);
+    const abono = Math.round(total * 0.5);
+    return { productos, flete, total, abono, saldo: total - abono };
+  }
 
   function render(){
     const cart = PH.getCart();
@@ -128,8 +138,7 @@
       return;
     }
 
-    const subtotal = PH.cartTotal();
-    const abono = Math.round(subtotal * 0.5);
+    const t = totales('');
 
     const items = cart.map(item => {
       const p = PH.getProduct(item.id);
@@ -149,7 +158,8 @@
     }).join('');
 
     const comunaOpts = ['<option value="">Selecciona...</option>']
-      .concat(COMUNAS.map(c => `<option>${c}</option>`)).join('');
+      .concat(PH.comunas().map(c => `<option value="${c.nombre}">${c.nombre} · flete ${PH.formatCLP(c.valor)}</option>`))
+      .concat([`<option value="${PH.OTRA_COMUNA}">${PH.OTRA_COMUNA}</option>`]).join('');
 
     root.innerHTML = `
       <div class="co-steps">
@@ -195,18 +205,18 @@
             </div>
             <div class="form-field">
               <label>Comentarios (opcional)</label>
-              <textarea name="notes" placeholder="Fecha del evento, dirección, accesos, alguna instrucción..."></textarea>
+              <textarea name="notes" placeholder="Dirección, accesos, horario preferido, alguna instrucción..."></textarea>
             </div>
           </div>
 
           <div style="padding:14px 16px;border:1px dashed var(--line);border-radius:12px;font-size:13px;color:var(--ink-dim);line-height:1.5;margin-bottom:18px">
             <strong style="color:var(--ink)">¿Cómo funciona?</strong><br/>
-            Reservas con el <strong style="color:var(--acid)">50% de abono</strong> (${PH.formatCLP(abono)}). El saldo restante (${PH.formatCLP(subtotal-abono)}) se cancela el día del evento, antes de la instalación.<br/>
-            <span style="color:var(--ink)">+ Costo de transporte</span> según la comuna del evento (te lo confirmamos por WhatsApp).
+            Reservas con el <strong style="color:var(--acid)">50% del total</strong> (productos + flete y montaje): <strong style="color:var(--ink)" data-v="abono">${PH.formatCLP(t.abono)}</strong>. El saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento, antes de la instalación.<br/>
+            <span data-v="nota-flete">El flete y montaje se suma según la comuna que elijas.</span>
           </div>
 
           <button type="submit" class="btn btn-mp btn-block" data-mode="mp" data-si="mp" style="padding:18px;font-size:16px;display:none">
-            Pagar abono ${PH.formatCLP(abono)} con Mercado Pago →
+            Pagar abono <span data-v="abono">${PH.formatCLP(t.abono)}</span> con Mercado Pago →
           </button>
           <button type="submit" class="btn btn-wa btn-block" data-mode="wa" id="btn-wa" style="padding:18px;font-size:16px">
             Reservar por WhatsApp →
@@ -217,21 +227,39 @@
         <aside class="summary">
           <h3>Tu reserva</h3>
           <div class="sum-items">${items}</div>
-          <div class="summary-row"><span>Subtotal</span><strong>${PH.formatCLP(subtotal)}</strong></div>
-          <div class="summary-row"><span>Instalación</span><strong style="color:var(--acid)">Gratis</strong></div>
-          <div class="summary-row"><span>Transporte</span><strong>Según comuna</strong></div>
+          <div class="summary-row"><span>Productos</span><strong>${PH.formatCLP(t.productos)}</strong></div>
+          <div class="summary-row"><span>Flete y montaje</span><strong data-v="flete">${t.flete === 0 ? 'Incluido' : 'Elige tu comuna'}</strong></div>
           <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
           <div class="summary-total">
             <div class="lbl">// TOTAL</div>
-            <div class="val">${PH.formatCLP(subtotal)}</div>
+            <div class="val" data-v="total">${PH.formatCLP(t.total)}</div>
           </div>
           <div class="summary-abono">
             <div class="lbl">Abono para reservar (50%)</div>
-            <div class="val">${PH.formatCLP(abono)}</div>
+            <div class="val" data-v="abono">${PH.formatCLP(t.abono)}</div>
           </div>
-          <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (${PH.formatCLP(subtotal-abono)}) se paga el día del evento</div>
+          <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento</div>
         </aside>
       </div>`;
+
+    // Recalcular totales al elegir comuna (sin redibujar el formulario)
+    const selComuna = document.querySelector('#co-form [name="comuna"]');
+    const actualizar = () => {
+      const c = selComuna.value;
+      const r = totales(c);
+      const set = (k, v) => document.querySelectorAll('#co-root [data-v="' + k + '"]').forEach(el => el.textContent = v);
+      set('flete', r.flete === null ? (c ? 'Por cotizar' : 'Elige tu comuna') : r.flete === 0 ? 'Incluido' : PH.formatCLP(r.flete));
+      set('total', PH.formatCLP(r.total) + (r.flete === null ? ' + flete' : ''));
+      set('abono', PH.formatCLP(r.abono));
+      set('saldo', PH.formatCLP(r.saldo));
+      set('nota-flete', r.flete === null && c
+        ? 'Para esta comuna te cotizamos el flete por WhatsApp (el pago online no está disponible).'
+        : r.flete ? 'Incluye flete y montaje a ' + c + ' (' + PH.formatCLP(r.flete) + ').' : 'El flete y montaje se suma según la comuna que elijas.');
+      const mp = document.querySelector('#co-form [data-mode="mp"]');
+      if(mp) mp.disabled = !!c && r.flete === null;
+    };
+    selComuna.addEventListener('change', actualizar);
+    actualizar();
 
     // Pago online: se muestra solo si el servidor está en modo producción (ver PH.pagoOnlineActivo)
     PH.pagoOnlineActivo().then(on => {
@@ -254,6 +282,10 @@
         PH.toast((bp ? bp.name + ': ' : '') + PH.unavailableReason(blocked.id, blocked.date) + '. Cambia la fecha en el carrito.', 'error');
         return;
       }
+      if(PH.cartDates().length > 1){
+        PH.toast('Tu pedido tiene productos en distintas fechas. Cada pedido es para un solo día: ajústalo en el carrito.', 'error');
+        return;
+      }
       if(e.submitter && e.submitter.dataset.mode === 'mp'){ pagarConMP(e.target, e.submitter); return; }
 
       const form = e.target;
@@ -270,17 +302,20 @@
         return `• ${p.name} (${p.size}) x${item.qty} — ${PH.formatCLP(p.price*item.qty)} — 📅 ${d}`;
       }).filter(Boolean).join('\n');
 
-      const sub = PH.cartTotal();
-      const ab = Math.round(sub*0.5);
+      const t = totales(comuna);
+      const sub = t.total;
+      const fleteTxt = t.flete === null ? 'por cotizar' : t.flete === 0 ? 'incluido' : PH.formatCLP(t.flete);
 
       const msg =
 `¡Hola Party House! 🎉 Quiero reservar:
 
 ${lines}
 
-Subtotal: ${PH.formatCLP(sub)}
-Abono 50%: ${PH.formatCLP(ab)}
-Saldo el día del evento: ${PH.formatCLP(sub-ab)}
+Productos: ${PH.formatCLP(t.productos)}
+Flete y montaje (${comuna}): ${fleteTxt}
+Total: ${PH.formatCLP(t.total)}${t.flete === null ? ' + flete' : ''}
+Abono 50%: ${PH.formatCLP(t.abono)}
+Saldo el día del evento: ${PH.formatCLP(t.saldo)}
 
 — Mis datos —
 Nombre: ${name}
@@ -323,6 +358,10 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
       PH.toast('Para pagar online elige la fecha de ' + (sp ? sp.name : 'cada producto') + ' en el carrito', 'error');
       return;
     }
+    if(PH.flete(get('comuna'), cart) === null){
+      PH.toast('Para esa comuna te cotizamos el flete por WhatsApp 🙌', 'error');
+      return;
+    }
     const label = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = 'Conectando con Mercado Pago…';
@@ -348,7 +387,9 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
         no_disponible: (e.nombre || 'Un producto') + ': ' + (e.motivo || 'no disponible') + '. Cambia la fecha en el carrito.',
         falta_fecha: 'Falta la fecha de ' + (e.nombre || 'un producto') + '. Elígela en el carrito.',
         pagos_no_configurados: 'El pago online aún no está activo. Reserva por WhatsApp 🙌',
-        datos_cliente_invalidos: 'Revisa tus datos de contacto.'
+        datos_cliente_invalidos: 'Revisa tus datos de contacto.',
+        varias_fechas: 'Cada pedido es para un solo día. Ajusta las fechas en el carrito.',
+        comuna_sin_tarifa: 'Para esa comuna te cotizamos el flete por WhatsApp 🙌'
       };
       PH.toast(msgs[e.error] || 'No pudimos conectar con Mercado Pago. Intenta de nuevo o reserva por WhatsApp.', 'error');
     }

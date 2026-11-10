@@ -81,10 +81,11 @@
   function detalle(r){
     const items = r.items.map(i => `<div class="pay-item"><span>${i.nombre} ×${i.qty}</span><span>${fmtFecha(i.fecha)}</span></div>`).join('');
     return `<div class="pay-items">${items}</div>
-      <div class="pay-row"><span>Total del arriendo</span><strong>${PH.formatCLP(r.total)}</strong></div>
+      <div class="pay-row"><span>Productos</span><strong>${PH.formatCLP(r.total - (r.flete || 0))}</strong></div>
+      <div class="pay-row"><span>Flete y montaje (${r.comuna})</span><strong>${r.flete ? PH.formatCLP(r.flete) : 'Incluido'}</strong></div>
+      <div class="pay-row"><span>Total</span><strong>${PH.formatCLP(r.total)}</strong></div>
       <div class="pay-row big"><span>Abono pagado</span><strong>${PH.formatCLP(r.monto_pagado || r.abono)}</strong></div>
-      <div class="pay-row"><span>Saldo el día del evento</span><strong>${PH.formatCLP(r.total - (r.monto_pagado || r.abono))}</strong></div>
-      <div class="pay-row"><span>+ Transporte</span><strong>Según comuna (${r.comuna})</strong></div>`;
+      <div class="pay-row"><span>Saldo el día del evento</span><strong>${PH.formatCLP(r.total - (r.monto_pagado || r.abono))}</strong></div>`;
   }
 
   function botonesReintento(){

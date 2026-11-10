@@ -58,6 +58,16 @@ Planificador: el cliente elige tipo de celebración, invitados, nivel y fecha, y
 que puede agregar al carrito o cotizar por WhatsApp. Las reglas están en la función `recommend()` de esa página.
 La sección "Completa tu fiesta" del carrito usa `PH.suggestFor()` en `assets/site.js`.
 
+## Flete y montaje (`assets/transporte.js`)
+
+Tabla de comunas y valores que se suma al total del pedido; **el abono es el 50% de (productos + flete)**.
+La usan el checkout, el carrito, las preguntas frecuentes y el servidor de pagos (el cobro con Mercado Pago lee
+este mismo archivo del sitio publicado, así que lo que edites aquí es lo que se cobra). Se edita en GitHub con el lápiz.
+- "Otra comuna": no se puede pagar online; se cotiza por WhatsApp.
+- `sinFlete`: productos que ya incluyen su transporte (si el pedido trae solo esos, no paga flete).
+- **Cada pedido es para un solo día**: el carrito aplica la misma fecha a todos los productos y el servidor rechaza
+  pedidos con varias fechas.
+
 ## Pago del abono con Mercado Pago
 
 El checkout ofrece **"Pagar abono con Mercado Pago"** (Checkout Pro) además de reservar por WhatsApp.

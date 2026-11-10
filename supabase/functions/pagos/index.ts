@@ -1,7 +1,7 @@
 // Party House — pagos del abono con Mercado Pago (Checkout Pro)
 //
 // Rutas (todas bajo /functions/v1/pagos):
-//   POST /crear           → valida carrito, recalcula precios en el servidor, crea la reserva y el cobro
+//   POST /crear           → valida carrito, recalcula precios y flete en el servidor, crea la reserva y el cobro
 //   POST /webhook         → notificación de Mercado Pago; consulta el pago a la API y actualiza la reserva
 //   GET  /estado?codigo=  → estado de una reserva (sin datos personales) para la página pago.html
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
@@ -69,13 +69,26 @@ type Dispo = {
   diasAnticipacion: number; mesesMaximo: number; cerrado: string[];
   ocupado: Record<string, string[]>; comparten: string[][]; bloqueoAutomatico: string[];
 };
-let cache: { t: number; productos: Map<string, Producto>; dispo: Dispo } | null = null;
+type Transporte = { comunas: Array<{ nombre: string; valor: number }>; sinFlete: string[] };
+let cache: { t: number; productos: Map<string, Producto>; dispo: Dispo; transporte: Transporte } | null = null;
+
+// Convierte el objeto literal de un archivo de configuración del sitio (assets/*.js) a JSON.
+function leerObjetoJs(texto: string, variable: string) {
+  const i = texto.indexOf('{', texto.indexOf(variable));
+  const src = texto.slice(i, texto.lastIndexOf('}') + 1)
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/'/g, '"')
+    .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":')
+    .replace(/,\s*([}\]])/g, '$1');
+  return JSON.parse(src);
+}
 
 async function cargarSitio() {
   if (cache && Date.now() - cache.t < 60_000) return cache;
-  const [dataJs, dispoJs] = await Promise.all([
+  const [dataJs, dispoJs, transJs] = await Promise.all([
     fetch(SITE + '/assets/data.js?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error('data.js ' + r.status); return r.text(); }),
     fetch(SITE + '/assets/disponibilidad.js?t=' + Date.now()).then((r) => (r.ok ? r.text() : '')),
+    fetch(SITE + '/assets/transporte.js?t=' + Date.now()).then((r) => { if (!r.ok) throw new Error('transporte.js ' + r.status); return r.text(); }),
   ]);
   const productos = new Map<string, Producto>();
   const re = /id:\s*'([^']+)',\s*name:\s*'([^']*)'[\s\S]*?price:\s*(\d+)/g;
@@ -84,17 +97,14 @@ async function cargarSitio() {
 
   let dispo: Dispo = { diasAnticipacion: 3, mesesMaximo: 4, cerrado: [], ocupado: {}, comparten: [], bloqueoAutomatico: [] };
   try {
-    const i = dispoJs.indexOf('{', dispoJs.indexOf('PH_DISPONIBILIDAD'));
-    const src = dispoJs.slice(i, dispoJs.lastIndexOf('}') + 1)
-      .replace(/\/\/[^\n]*/g, '')
-      .replace(/'/g, '"')
-      .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":')
-      .replace(/,\s*([}\]])/g, '$1');
-    dispo = { ...dispo, ...JSON.parse(src) };
+    dispo = { ...dispo, ...leerObjetoJs(dispoJs, 'PH_DISPONIBILIDAD') };
   } catch (e) {
     console.error('No se pudo leer disponibilidad.js; uso valores por defecto', e);
   }
-  cache = { t: Date.now(), productos, dispo };
+  // Sin tarifas no se puede cobrar el flete: mejor fallar que cobrar de menos
+  const transporte: Transporte = { comunas: [], sinFlete: [], ...leerObjetoJs(transJs, 'PH_TRANSPORTE') };
+  if (!transporte.comunas.length) throw new Error('transporte.js sin comunas');
+  cache = { t: Date.now(), productos, dispo, transporte };
   return cache;
 }
 
@@ -255,7 +265,7 @@ async function crear(req: Request) {
     return json(req, { error: 'datos_cliente_invalidos' }, 400);
   }
 
-  const { productos, dispo } = await cargarSitio();
+  const { productos, dispo, transporte } = await cargarSitio();
   const pagadas = await fechasPagadas(dispo);
   const lineas: Array<{ id: string; nombre: string; qty: number; fecha: string; precio: number }> = [];
   for (const it of items) {
@@ -267,14 +277,23 @@ async function crear(req: Request) {
     if (motivo) return json(req, { error: 'no_disponible', id: p.id, nombre: p.name, fecha: it.date, motivo }, 409);
     lineas.push({ id: p.id, nombre: p.name, qty, fecha: it.date, precio: p.price });
   }
-  const total = lineas.reduce((s, l) => s + l.precio * l.qty, 0);
+  const fechas = [...new Set(lineas.map((l) => l.fecha))].sort();
+  if (fechas.length > 1) return json(req, { error: 'varias_fechas' }, 400); // cada pedido es para un solo día
+
+  // Flete y montaje según comuna (assets/transporte.js). Pedidos solo con productos "sinFlete" no pagan.
+  const soloSinFlete = lineas.every((l) => (transporte.sinFlete || []).includes(l.id));
+  const tarifa = transporte.comunas.find((c) => c.nombre === cliente.comuna);
+  if (!soloSinFlete && !tarifa) return json(req, { error: 'comuna_sin_tarifa' }, 400);
+  const flete = soloSinFlete ? 0 : Math.round(Number(tarifa!.valor));
+
+  const productosTotal = lineas.reduce((s, l) => s + l.precio * l.qty, 0);
+  const total = productosTotal + flete;
   const abono = Math.round(total * ABONO);
   const codigo = codigoNuevo();
-  const fechas = [...new Set(lineas.map((l) => l.fecha))].sort();
 
   mpToken(); // falla temprano si no está configurado
   const { data: res, error } = await db.from('reservas').insert({
-    codigo, items: lineas, fechas, total, abono,
+    codigo, items: lineas, fechas, total, abono, flete,
     cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email,
     comuna: cliente.comuna, notas: cliente.notas || null,
   }).select('id').single();
@@ -289,7 +308,8 @@ async function crear(req: Request) {
       items: [{
         id: codigo,
         title: `Abono 50% reserva ${codigo} · Party House`,
-        description: (`Evento ${fechaTxt}: ` + lineas.map((l) => `${l.nombre} x${l.qty}`).join(', ')).slice(0, 250),
+        description: (`Evento ${fechaTxt} en ${cliente.comuna}: ` + lineas.map((l) => `${l.nombre} x${l.qty}`).join(', ') +
+          (flete ? ` + flete y montaje` : '')).slice(0, 250),
         category_id: 'services',
         quantity: 1,
         unit_price: abono,
@@ -311,7 +331,7 @@ async function crear(req: Request) {
     }),
   });
   await db.from('reservas').update({ mp_preference_id: pref.id }).eq('id', res.id);
-  return json(req, { codigo, total, abono, init_point: pref.init_point });
+  return json(req, { codigo, total, abono, flete, init_point: pref.init_point });
 }
 
 async function webhook(req: Request, url: URL) {
@@ -335,7 +355,7 @@ async function estado(req: Request, url: URL) {
   }
   return json(req, {
     codigo: res.codigo, estado: res.estado, mp_status: res.mp_status, total: res.total, abono: res.abono,
-    monto_pagado: res.monto_pagado, fechas: res.fechas, comuna: res.comuna,
+    monto_pagado: res.monto_pagado, fechas: res.fechas, comuna: res.comuna, flete: res.flete,
     items: (res.items as Array<{ nombre: string; qty: number; fecha: string }>).map((i) => ({ nombre: i.nombre, qty: i.qty, fecha: i.fecha })),
   });
 }

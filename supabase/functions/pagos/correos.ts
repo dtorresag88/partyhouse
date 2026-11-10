@@ -37,9 +37,11 @@ export function correoDueno(r: any, prueba: boolean) {
   <p style="margin:0 0 16px;color:#444">Evento: <b>${esc(fechas)}</b> · ${esc(r.comuna)}</p>
   <table style="width:100%;border-collapse:collapse;font-size:14px">${filasItems(items)}</table>
   <p style="font-size:15px;line-height:1.6">
+    Productos: <b>${clp(r.total - (r.flete || 0))}</b><br>
+    Flete y montaje (${esc(r.comuna)}): <b>${r.flete ? clp(r.flete) : 'incluido'}</b><br>
     Total: <b>${clp(r.total)}</b><br>
     Abono pagado: <b style="color:#0a7a3e">${clp(pagado(r))}</b><br>
-    Saldo el día del evento: <b>${clp(r.total - pagado(r))}</b> + transporte
+    Saldo el día del evento: <b>${clp(r.total - pagado(r))}</b>
   </p>
   <h3 style="margin:20px 0 6px">Cliente</h3>
   <p style="font-size:15px;line-height:1.6;margin:0">
@@ -104,17 +106,18 @@ export function correoCliente(r: any, prueba: boolean) {
     <table style="width:100%;border-collapse:collapse;font-size:14px">${filasItems(items)}</table>
 
     <table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:14px">
-      <tr><td style="padding:4px 0;color:#444">Total del arriendo</td><td style="padding:4px 0;text-align:right">${clp(r.total)}</td></tr>
+      <tr><td style="padding:4px 0;color:#444">Productos</td><td style="padding:4px 0;text-align:right">${clp(r.total - (r.flete || 0))}</td></tr>
+      <tr><td style="padding:4px 0;color:#444">Flete y montaje (${esc(r.comuna)})</td><td style="padding:4px 0;text-align:right">${r.flete ? clp(r.flete) : 'Incluido'}</td></tr>
+      <tr><td style="padding:4px 0;color:#444;font-weight:bold">Total</td><td style="padding:4px 0;text-align:right;font-weight:bold">${clp(r.total)}</td></tr>
       <tr><td style="padding:4px 0;color:#0a7a3e;font-weight:bold">Abono pagado ✓</td><td style="padding:4px 0;text-align:right;color:#0a7a3e;font-weight:bold">${clp(pagado(r))}</td></tr>
       <tr><td style="padding:4px 0;color:#444">Saldo a pagar el día del evento</td><td style="padding:4px 0;text-align:right;font-weight:bold">${clp(saldo)}</td></tr>
-      <tr><td style="padding:4px 0;color:#444">Transporte (${esc(r.comuna)})</td><td style="padding:4px 0;text-align:right;color:#666">Te lo confirmamos</td></tr>
     </table>
 
     <h2 style="font-size:17px;margin:26px 0 10px">¿Qué sigue?</h2>
     <ol style="padding-left:20px;margin:0;font-size:14px;line-height:1.6;color:#333">
       <li>Te escribimos por WhatsApp para coordinar <b>dirección, accesos y horario de instalación</b> (o escríbenos tú con el botón de abajo).</li>
       <li>El día del evento llegamos, instalamos todo y dejamos la fiesta lista para prender.</li>
-      <li>Antes de la instalación se paga el <b>saldo (${clp(saldo)})</b> más el transporte, y se deja una <b>garantía de $100.000</b> que se devuelve íntegra al retirar si todo está en orden.</li>
+      <li>Antes de la instalación se paga el <b>saldo (${clp(saldo)})</b> y se deja una <b>garantía de $100.000</b> que se devuelve íntegra al retirar si todo está en orden.</li>
     </ol>
 
     <div style="text-align:center;margin:26px 0 10px">
