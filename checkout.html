@@ -162,7 +162,8 @@
         <form id="co-form" novalidate>
           <div class="wa-note">
             <div class="wa-ico"></div>
-            <div>Paga el <strong>abono del 50%</strong> con <strong>Mercado Pago</strong> (crédito, débito o saldo) y tu fecha queda asegurada al instante. Si prefieres, envíanos el pedido por <strong>WhatsApp</strong> y lo coordinamos.</div>
+            <div data-si="mp" style="display:none">Paga el <strong>abono del 50%</strong> con <strong>Mercado Pago</strong> (crédito, débito o saldo) y tu fecha queda asegurada al instante. Si prefieres, envíanos el pedido por <strong>WhatsApp</strong> y lo coordinamos.</div>
+            <div data-si="wa">Al reservar te abrimos una conversación de <strong>WhatsApp</strong> con todo tu pedido y tus datos ya escritos. Solo nos confirmas la fecha y el <strong>abono del 50%</strong> para asegurar tu día.</div>
           </div>
 
           <div class="co-section">
@@ -204,13 +205,13 @@
             <span style="color:var(--ink)">+ Costo de transporte</span> según la comuna del evento (te lo confirmamos por WhatsApp).
           </div>
 
-          <button type="submit" class="btn btn-mp btn-block" data-mode="mp" style="padding:18px;font-size:16px">
+          <button type="submit" class="btn btn-mp btn-block" data-mode="mp" data-si="mp" style="padding:18px;font-size:16px;display:none">
             Pagar abono ${PH.formatCLP(abono)} con Mercado Pago →
           </button>
-          <button type="submit" class="btn btn-ghost btn-block" data-mode="wa" style="margin-top:10px">
-            Prefiero reservar por WhatsApp
+          <button type="submit" class="btn btn-wa btn-block" data-mode="wa" id="btn-wa" style="padding:18px;font-size:16px">
+            Reservar por WhatsApp →
           </button>
-          <div class="mp-secure">🔒 Pago seguro procesado por Mercado Pago. No guardamos los datos de tu tarjeta.</div>
+          <div class="mp-secure" data-si="mp" style="display:none">🔒 Pago seguro procesado por Mercado Pago. No guardamos los datos de tu tarjeta.</div>
         </form>
 
         <aside class="summary">
@@ -231,6 +232,17 @@
           <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (${PH.formatCLP(subtotal-abono)}) se paga el día del evento</div>
         </aside>
       </div>`;
+
+    // Pago online: se muestra solo si el servidor está en modo producción (ver PH.pagoOnlineActivo)
+    PH.pagoOnlineActivo().then(on => {
+      if(!on || !document.getElementById('co-form')) return;
+      document.querySelectorAll('#co-root [data-si="mp"]').forEach(el => el.style.display = '');
+      document.querySelectorAll('#co-root [data-si="wa"]').forEach(el => el.style.display = 'none');
+      const wa = document.getElementById('btn-wa');
+      wa.className = 'btn btn-ghost btn-block';
+      wa.style.cssText = 'margin-top:10px';
+      wa.textContent = 'Prefiero reservar por WhatsApp';
+    });
 
     // Form submit → build WhatsApp message
     document.getElementById('co-form').addEventListener('submit', e => {

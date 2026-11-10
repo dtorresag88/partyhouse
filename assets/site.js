@@ -213,6 +213,15 @@
 
   // ============ PAGOS (Mercado Pago vía Supabase Edge Function) ============
   PH.PAGOS_URL = 'https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos';
+  // ¿Se puede pagar online? Solo con credenciales de producción. Con las de prueba, el botón
+  // aparece únicamente en local o agregando ?prueba=1 a la URL (para no confundir a clientes reales).
+  PH.pagoOnlineActivo = function(){
+    if(!PH._modo){
+      PH._modo = fetch(PH.PAGOS_URL + '/modo').then(r => r.json()).then(d => d.modo).catch(() => 'desactivado');
+    }
+    const forzar = /[?&]prueba=1\b/.test(location.search) || /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+    return PH._modo.then(m => m === 'produccion' || (m === 'prueba' && forzar));
+  };
 
   // ============ DISPONIBILIDAD ============
   // Datos en assets/disponibilidad.js (lo edita el dueño). Fechas en formato 'AAAA-MM-DD'.

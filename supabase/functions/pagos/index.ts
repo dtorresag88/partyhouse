@@ -5,6 +5,7 @@
 //   POST /webhook         → notificación de Mercado Pago; consulta el pago a la API y actualiza la reserva
 //   GET  /estado?codigo=  → estado de una reserva (sin datos personales) para la página pago.html
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
+//   GET  /modo            → 'produccion' | 'prueba' | 'desactivado' (el checkout muestra el botón solo en producción)
 //
 // Secretos (Supabase → Edge Functions → Secrets):
 //   MP_ACCESS_TOKEN    (obligatorio) Access Token de Mercado Pago (TEST-... o APP_USR-...)
@@ -370,6 +371,10 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && ruta === 'webhook') return await webhook(req, url);
     if (req.method === 'GET' && ruta === 'estado') return await estado(req, url);
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
+    if (req.method === 'GET' && ruta === 'modo') {
+      const t = Deno.env.get('MP_ACCESS_TOKEN') || '';
+      return json(req, { modo: !t ? 'desactivado' : t.startsWith('TEST-') ? 'prueba' : 'produccion' });
+    }
     return json(req, { error: 'ruta_no_encontrada' }, 404);
   } catch (e) {
     const status = (e as { status?: number }).status || 500;

@@ -72,7 +72,12 @@ El checkout ofrece **"Pagar abono con Mercado Pago"** (Checkout Pro) además de 
 - **Ver reservas:** Supabase → Table Editor → `reservas` (o tu panel de Mercado Pago, buscando el código `PH-…`).
 - **Secretos** (Supabase → Edge Functions → Secrets): `MP_ACCESS_TOKEN` (obligatorio) y
   `MP_WEBHOOK_SECRET` (opcional, valida la firma de las notificaciones).
-- **Pasar a producción:** reemplaza `MP_ACCESS_TOKEN` por el Access Token de producción (`APP_USR-…`).
+- **Activación automática:** el botón de Mercado Pago aparece en el checkout solo cuando `MP_ACCESS_TOKEN` es de
+  producción. Con credenciales de prueba (`TEST-…`) queda oculto para los clientes; para probarlo abre
+  `checkout.html?prueba=1` (o el sitio en local).
+- **Pasar a producción:** reemplaza `MP_ACCESS_TOKEN` por el Access Token de producción (`APP_USR-…`). No hay que tocar código.
+- **Aviso por correo:** cada abono pagado envía un correo desde `reservas@partyhouse.cl` (Resend, secreto `RESEND_API_KEY`)
+  al correo guardado en la tabla `config` (clave `email_avisos`) de Supabase.
 
 ## Analítica (opcional)
 
