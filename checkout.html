@@ -32,6 +32,10 @@
 
   .btn-wa{background:#25D366!important;color:#0a3d1c!important}
   .btn-wa:hover{background:#1fc15c!important}
+  .btn-mp{background:#009ee3;color:#fff}
+  .btn-mp:hover{background:#0089c7}
+  .btn-mp:disabled{opacity:.7;cursor:wait;transform:none}
+  .mp-secure{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.04em;text-align:center;margin-top:12px;line-height:1.5}
 
   /* Summary */
   .summary{position:sticky;top:120px;border:1px solid var(--line);border-radius:20px;padding:28px;background:var(--card)}
@@ -158,7 +162,7 @@
         <form id="co-form" novalidate>
           <div class="wa-note">
             <div class="wa-ico"></div>
-            <div>Al reservar te abrimos una conversación de <strong>WhatsApp</strong> con todo tu pedido y tus datos ya escritos. Solo nos confirmas la fecha y el <strong>abono del 50%</strong> para asegurar tu día.</div>
+            <div>Paga el <strong>abono del 50%</strong> con <strong>Mercado Pago</strong> (crédito, débito o saldo) y tu fecha queda asegurada al instante. Si prefieres, envíanos el pedido por <strong>WhatsApp</strong> y lo coordinamos.</div>
           </div>
 
           <div class="co-section">
@@ -200,9 +204,13 @@
             <span style="color:var(--ink)">+ Costo de transporte</span> según la comuna del evento (te lo confirmamos por WhatsApp).
           </div>
 
-          <button type="submit" class="btn btn-wa btn-block" style="padding:18px;font-size:16px">
-            Reservar por WhatsApp →
+          <button type="submit" class="btn btn-mp btn-block" data-mode="mp" style="padding:18px;font-size:16px">
+            Pagar abono ${PH.formatCLP(abono)} con Mercado Pago →
           </button>
+          <button type="submit" class="btn btn-ghost btn-block" data-mode="wa" style="margin-top:10px">
+            Prefiero reservar por WhatsApp
+          </button>
+          <div class="mp-secure">🔒 Pago seguro procesado por Mercado Pago. No guardamos los datos de tu tarjeta.</div>
         </form>
 
         <aside class="summary">
@@ -234,6 +242,7 @@
         PH.toast((bp ? bp.name + ': ' : '') + PH.unavailableReason(blocked.id, blocked.date) + '. Cambia la fecha en el carrito.', 'error');
         return;
       }
+      if(e.submitter && e.submitter.dataset.mode === 'mp'){ pagarConMP(e.target, e.submitter); return; }
 
       const form = e.target;
       const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
@@ -290,6 +299,47 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
         description: 'Reserva (por confirmar):\n' + byDate[d].join('\n') + '\n\nComuna: ' + comuna + '\nWhatsApp Party House: +56 9 5698 1681'
       })));
     });
+  }
+
+  // Pago del abono con Mercado Pago: el servidor recalcula precios, valida fechas y crea el cobro.
+  async function pagarConMP(form, btn){
+    const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
+    const cart = PH.getCart();
+    const sinFecha = cart.find(c => !c.date);
+    if(sinFecha){
+      const sp = PH.getProduct(sinFecha.id);
+      PH.toast('Para pagar online elige la fecha de ' + (sp ? sp.name : 'cada producto') + ' en el carrito', 'error');
+      return;
+    }
+    const label = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Conectando con Mercado Pago…';
+    try {
+      const r = await fetch(PH.PAGOS_URL + '/crear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(c => ({ id: c.id, qty: c.qty, date: c.date })),
+          cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), notes: get('notes') }
+        })
+      });
+      const data = await r.json().catch(() => ({}));
+      if(!r.ok || !data.init_point) throw data;
+      try { localStorage.setItem('ph_pago', JSON.stringify({ codigo: data.codigo, nombre: get('name'), t: Date.now() })); } catch(_){}
+      PH.track('pago_mp_iniciado', { total: data.total });
+      location.href = data.init_point;
+    } catch(err){
+      btn.disabled = false;
+      btn.innerHTML = label;
+      const e = err || {};
+      const msgs = {
+        no_disponible: (e.nombre || 'Un producto') + ': ' + (e.motivo || 'no disponible') + '. Cambia la fecha en el carrito.',
+        falta_fecha: 'Falta la fecha de ' + (e.nombre || 'un producto') + '. Elígela en el carrito.',
+        pagos_no_configurados: 'El pago online aún no está activo. Reserva por WhatsApp 🙌',
+        datos_cliente_invalidos: 'Revisa tus datos de contacto.'
+      };
+      PH.toast(msgs[e.error] || 'No pudimos conectar con Mercado Pago. Intenta de nuevo o reserva por WhatsApp.', 'error');
+    }
   }
 
   function validate(){

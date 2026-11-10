@@ -82,7 +82,7 @@
       <div class="pay-row">
         <span class="pp">VISA</span>
         <span class="pp">MC</span>
-        <span class="pp">WEBPAY</span>
+        <span class="pp">MERCADO PAGO</span>
         <span class="pp">TRANSF.</span>
       </div>
     </div>
