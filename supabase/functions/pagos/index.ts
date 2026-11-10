@@ -11,7 +11,7 @@
 //   MP_WEBHOOK_SECRET  (opcional)    "Clave secreta" de Webhooks de Mercado Pago para validar la firma
 //   SITE_URL           (opcional)    por defecto https://partyhouse.cl
 //   RESEND_API_KEY     (opcional)    para el aviso por correo de cada abono pagado (destino: tabla config, clave email_avisos)
-//   EMAIL_FROM         (opcional)    remitente; por defecto "Party House <onboarding@resend.dev>"
+//   EMAIL_FROM         (opcional)    remitente; por defecto "Party House <reservas@partyhouse.cl>"
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 const SITE = (Deno.env.get('SITE_URL') || 'https://partyhouse.cl').replace(/\/$/, '');
@@ -227,7 +227,7 @@ async function avisarPago(r: any) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', 'Idempotency-Key': 'aviso-' + r.codigo },
     body: JSON.stringify({
-      from: Deno.env.get('EMAIL_FROM') || 'Party House <onboarding@resend.dev>',
+      from: Deno.env.get('EMAIL_FROM') || 'Party House <reservas@partyhouse.cl>',
       to: [cfg.valor],
       reply_to: r.cliente_email,
       subject: `${test ? '[PRUEBA] ' : ''}💸 Abono pagado ${clp(r.monto_pagado || r.abono)} · ${r.codigo} · ${fechas}`,
