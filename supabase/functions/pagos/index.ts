@@ -6,6 +6,7 @@
 //   GET  /estado?codigo=  → estado de una reserva (sin datos personales) para la página pago.html
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
 //   POST /contacto        → formulario de contacto del sitio: envía el mensaje por correo al dueño
+//   POST /recordatorios   → (tarea diaria pg_cron, header x-cron-key) pide la garantía desde 7 días antes del evento
 //   GET  /modo            → 'produccion' | 'prueba' | 'desactivado' (el checkout muestra el botón solo en producción)
 //
 // Secretos (Supabase → Edge Functions → Secrets):
@@ -16,7 +17,10 @@
 //   EMAIL_FROM         (opcional)    remitente; por defecto "Party House <reservas@partyhouse.cl>"
 // Correos: aviso al dueño + confirmación al cliente (plantillas en correos.ts)
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { correoCliente, correoContacto, correoDueno, enviarCorreo, REMITENTE } from './correos.ts';
+import {
+  correoCliente, correoContacto, correoDueno, correoGarantia, correoGarantiaDevuelta, correoGarantiaDueno,
+  correoGarantiaRecibida, enviarCorreo, REMITENTE,
+} from './correos.ts';
 
 const SITE = (Deno.env.get('SITE_URL') || 'https://partyhouse.cl').replace(/\/$/, '');
 const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ||
@@ -161,7 +165,9 @@ async function mp(path: string, init: RequestInit = {}) {
 // Aplica un pago de Mercado Pago a su reserva. Solo confía en lo que devuelve la API de MP.
 async function aplicarPago(paymentId: string) {
   const p = await mp('/v1/payments/' + encodeURIComponent(paymentId));
-  const codigo = p.external_reference;
+  const ref = String(p.external_reference || '');
+  if (ref.endsWith('-G')) return aplicarGarantia(p, ref.slice(0, -2));
+  const codigo = ref;
   if (!codigo) return null;
   const { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
   if (!res) return null;
@@ -229,6 +235,107 @@ async function confirmarCliente(r: any) {
   await enviarCorreo(resendKey(), 'cliente-' + r.codigo, {
     from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoCliente(r, esPrueba()),
   });
+}
+
+// ---------- garantía reembolsable ----------
+// Pago de garantía (referencia "<codigo>-G"). Solo confía en lo que devuelve la API de MP.
+// deno-lint-ignore no-explicit-any
+async function aplicarGarantia(p: any, codigo: string) {
+  const { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
+  if (!res) return null;
+  const ahora = new Date().toISOString();
+  if (p.status === 'approved' && p.currency_id === 'CLP' && Number(p.transaction_amount) >= res.garantia_monto) {
+    // Solo la primera vez que pasa a "pagada" se envían los correos
+    const { data: cambio } = await db.from('reservas').update({
+      garantia_estado: 'pagada', garantia_payment_id: String(p.id), garantia_pagada_en: p.date_approved || ahora, actualizada: ahora,
+    }).eq('id', res.id).eq('garantia_estado', 'pendiente').select('*');
+    if (cambio?.length) {
+      const r = cambio[0];
+      await Promise.allSettled([
+        enviarCorreo(resendKey(), 'garantia-ok-' + codigo, {
+          from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoGarantiaRecibida(r, esPrueba()),
+        }),
+        enviarCorreo(resendKey(), 'garantia-dueno-' + codigo, {
+          from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [await emailDueno()], reply_to: r.cliente_email, ...correoGarantiaDueno(r, esPrueba()),
+        }),
+      ]).then((rs) => rs.forEach((x) => x.status === 'rejected' && console.error('correo garantía', x.reason)));
+      return r;
+    }
+  } else if (['refunded', 'charged_back'].includes(p.status)) {
+    const { data: cambio } = await db.from('reservas').update({ garantia_estado: 'devuelta', actualizada: ahora })
+      .eq('id', res.id).eq('garantia_estado', 'pagada').select('*');
+    if (cambio?.length) {
+      try {
+        await enviarCorreo(resendKey(), 'garantia-devuelta-' + codigo, {
+          from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [cambio[0].cliente_email], reply_to: await emailDueno(), ...correoGarantiaDevuelta(cambio[0], esPrueba()),
+        });
+      } catch (e) { console.error('correo garantía devuelta', e); }
+      return cambio[0];
+    }
+  }
+  const { data: actual } = await db.from('reservas').select('*').eq('id', res.id).single();
+  return actual;
+}
+
+// Link de pago de la garantía (se crea una vez y se reutiliza en cada recordatorio)
+// deno-lint-ignore no-explicit-any
+async function linkGarantia(r: any) {
+  if (r.garantia_link) return r.garantia_link as string;
+  const pref = await mp('/checkout/preferences', {
+    method: 'POST',
+    headers: { 'X-Idempotency-Key': r.codigo + '-G' },
+    body: JSON.stringify({
+      items: [{
+        id: r.codigo + '-G',
+        title: `Garantía reembolsable reserva ${r.codigo} · Party House`,
+        description: `Garantía reembolsable para el evento del ${r.fechas[0]} en ${r.comuna}. Se devuelve tras el retiro si todo está en orden.`,
+        category_id: 'services', quantity: 1, unit_price: r.garantia_monto, currency_id: 'CLP',
+      }],
+      payer: { name: r.cliente_nombre, email: r.cliente_email },
+      external_reference: r.codigo + '-G',
+      back_urls: { success: `${SITE}/pago.html`, pending: `${SITE}/pago.html`, failure: `${SITE}/pago.html` },
+      auto_return: 'approved',
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pagos/webhook`,
+      statement_descriptor: 'PARTYHOUSE',
+      metadata: { codigo: r.codigo, tipo: 'garantia' },
+    }),
+  });
+  await db.from('reservas').update({ garantia_link: pref.init_point }).eq('id', r.id);
+  return pref.init_point as string;
+}
+
+// Tarea diaria: desde 7 días antes del evento, un correo por día hasta que la garantía quede pagada.
+// Body opcional (pruebas): { codigo, forzar: true } envía solo a esa reserva aunque esté fuera de la ventana.
+async function recordatorios(req: Request) {
+  const { data: k } = await db.from('config').select('valor').eq('clave', 'cron_key').maybeSingle();
+  if (!k?.valor || req.headers.get('x-cron-key') !== k.valor) return json(req, { error: 'no_autorizado' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const hoy = todayCL();
+  let q = db.from('reservas').select('*').eq('estado', 'pagado').eq('garantia_estado', 'pendiente').gt('garantia_monto', 0);
+  if (b?.codigo) q = q.eq('codigo', String(b.codigo));
+  const { data: lista, error } = await q;
+  if (error) throw error;
+  const resultado: Array<Record<string, unknown>> = [];
+  for (const r of lista || []) {
+    const fecha = (r.fechas as string[])[0];
+    const dias = Math.round((Date.parse(fecha + 'T00:00:00Z') - Date.parse(hoy + 'T00:00:00Z')) / 86_400_000);
+    const enVentana = dias >= 1 && dias <= 7;
+    if ((!enVentana && !b?.forzar) || r.garantia_ultimo_aviso === hoy) { resultado.push({ codigo: r.codigo, dias, enviado: false }); continue; }
+    try {
+      const link = await linkGarantia(r);
+      const n = (r.garantia_avisos || 0) + 1;
+      await enviarCorreo(resendKey(), `garantia-${r.codigo}-${hoy}`, {
+        from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(),
+        ...correoGarantia(r, Math.max(dias, 1), link, n, esPrueba()),
+      });
+      await db.from('reservas').update({ garantia_avisos: n, garantia_ultimo_aviso: hoy }).eq('id', r.id);
+      resultado.push({ codigo: r.codigo, dias, enviado: true, aviso: n });
+    } catch (e) {
+      console.error('recordatorio garantía', r.codigo, e);
+      resultado.push({ codigo: r.codigo, dias, enviado: false, error: String(e).slice(0, 200) });
+    }
+  }
+  return json(req, { hoy, resultado });
 }
 
 async function firmaValida(req: Request, url: URL) {
@@ -344,18 +451,22 @@ async function webhook(req: Request, url: URL) {
 }
 
 async function estado(req: Request, url: URL) {
-  const codigo = clip(url.searchParams.get('codigo'), 20).toUpperCase();
+  const ref = clip(url.searchParams.get('codigo'), 22).toUpperCase();
   const paymentId = clip(url.searchParams.get('payment_id'), 30);
-  if (!/^PH-[A-Z0-9]{8}$/.test(codigo)) return json(req, { error: 'codigo_invalido' }, 400);
+  if (!/^PH-[A-Z0-9]{8}(-G)?$/.test(ref)) return json(req, { error: 'codigo_invalido' }, 400);
+  const esGarantia = ref.endsWith('-G');
+  const codigo = esGarantia ? ref.slice(0, -2) : ref;
   let { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
   if (!res) return json(req, { error: 'no_encontrada' }, 404);
   // Si vuelve del checkout antes que el webhook, conciliamos consultando el pago directo a MP
-  if (res.estado !== 'pagado' && /^\d+$/.test(paymentId)) {
+  const pendiente = esGarantia ? res.garantia_estado === 'pendiente' : res.estado !== 'pagado';
+  if (pendiente && /^\d+$/.test(paymentId)) {
     try { res = (await aplicarPago(paymentId)) || res; } catch (e) { console.error(e); }
   }
   return json(req, {
     codigo: res.codigo, estado: res.estado, mp_status: res.mp_status, total: res.total, abono: res.abono,
     monto_pagado: res.monto_pagado, fechas: res.fechas, comuna: res.comuna, flete: res.flete,
+    garantia_estado: res.garantia_estado, garantia_monto: res.garantia_monto,
     items: (res.items as Array<{ nombre: string; qty: number; fecha: string }>).map((i) => ({ nombre: i.nombre, qty: i.qty, fecha: i.fecha })),
   });
 }
@@ -398,6 +509,7 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && ruta === 'crear') return await crear(req);
     if (req.method === 'POST' && ruta === 'webhook') return await webhook(req, url);
     if (req.method === 'POST' && ruta === 'contacto') return await contacto(req);
+    if (req.method === 'POST' && ruta === 'recordatorios') return await recordatorios(req);
     if (req.method === 'GET' && ruta === 'estado') return await estado(req, url);
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
     if (req.method === 'GET' && ruta === 'modo') {

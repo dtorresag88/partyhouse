@@ -229,7 +229,6 @@
           <div class="sum-items">${items}</div>
           <div class="summary-row"><span>Productos</span><strong>${PH.formatCLP(t.productos)}</strong></div>
           <div class="summary-row"><span>Flete y montaje</span><strong data-v="flete">${t.flete === 0 ? 'Incluido' : 'Elige tu comuna'}</strong></div>
-          <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
           <div class="summary-total">
             <div class="lbl">// TOTAL</div>
             <div class="val" data-v="total">${PH.formatCLP(t.total)}</div>
@@ -239,6 +238,7 @@
             <div class="val" data-v="abono">${PH.formatCLP(t.abono)}</div>
           </div>
           <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;text-align:center">Saldo (<span data-v="saldo">${PH.formatCLP(t.saldo)}</span>) se paga el día del evento</div>
+          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(100000)}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
         </aside>
       </div>`;
 

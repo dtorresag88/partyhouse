@@ -232,7 +232,6 @@
           <h3>Resumen</h3>
           <div class="summary-row"><span>Productos</span><strong>${PH.formatCLP(subtotal)}</strong></div>
           <div class="summary-row"><span>Flete y montaje</span><strong>${PH.flete('', cart) === 0 ? '<span style="color:var(--acid)">Incluido</span>' : 'Desde ' + PH.formatCLP(PH.fleteDesde() || 0) + ' · se calcula con tu comuna'}</strong></div>
-          <div class="summary-row"><span>Garantía (reembolsable)</span><strong>${PH.formatCLP(100000)}</strong></div>
           <div class="summary-total">
             <div class="lbl">// TOTAL PRODUCTOS</div>
             <div class="val">${PH.formatCLP(subtotal)}</div>
@@ -241,6 +240,7 @@
             <div class="lbl">Abono 50% (+ mitad del flete)</div>
             <div class="val">${PH.formatCLP(abono)}</div>
           </div>
+          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${PH.formatCLP(100000)}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
           <a class="btn btn-primary" href="checkout.html">Continuar a la reserva →</a>
           <a class="btn btn-ghost" href="catalogo.html">Seguir armando →</a>
           <div class="summary-note">El saldo restante se cancela el día del evento.</div>

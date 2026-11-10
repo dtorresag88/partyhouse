@@ -96,7 +96,7 @@
   }
 
   async function revisar(){
-    if(!/^PH-[A-Z0-9]{8}$/.test(codigo)){
+    if(!/^PH-[A-Z0-9]{8}(-G)?$/.test(codigo)){
       pintar('bad', '?', 'No encontramos tu reserva', 'Si pagaste, no te preocupes: escríbenos por WhatsApp con el comprobante de Mercado Pago y lo revisamos al tiro.', botonesReintento());
       return;
     }
@@ -108,6 +108,24 @@
     } catch(e){
       if(++intentos < 4) return setTimeout(revisar, 3000);
       pintar('warn', '!', 'No pudimos confirmar tu pago', 'Hubo un problema de conexión. Si el cobro aparece en tu Mercado Pago, la reserva está registrada: escríbenos por WhatsApp con tu código.', `<div class="code">${codigo}</div>` + botonesReintento());
+      return;
+    }
+
+    // Vuelta desde el pago de la garantía reembolsable (referencia PH-XXXXXXXX-G)
+    if(codigo.endsWith('-G')){
+      const monto = PH.formatCLP(r.garantia_monto || 100000);
+      if(r.garantia_estado === 'pagada' || r.garantia_estado === 'devuelta'){
+        pintar('ok', '✓', '¡Garantía <span class="acid">recibida!</span>',
+          `Recibimos tu garantía reembolsable de ${monto}. Ya no te llegarán más recordatorios. Te la devolvemos íntegra después del retiro si todo está en orden.`,
+          `<div class="code">${r.codigo}</div><div class="pay-actions"><a class="btn btn-primary" href="index.html">Volver al inicio</a></div>`);
+        PH.celebrate({ particleCount: 100 });
+      } else if(['pending', 'in_process'].includes(mpStatus)){
+        pintar('warn', '⏳', 'Tu pago está en proceso', 'Mercado Pago aún está procesando el pago de la garantía. Te avisamos por correo apenas se acredite.', `<div class="code">${r.codigo}</div>`);
+        if(++intentos < 12) setTimeout(revisar, 5000);
+      } else {
+        pintar('warn', '!', 'La garantía aún no está pagada', `Puedes volver a intentarlo desde el link del correo que te enviamos. ¿Dudas? Escríbenos por WhatsApp.`,
+          `<div class="code">${r.codigo}</div><div class="pay-actions"><a class="btn btn-ghost" href="${PH.waLink('¡Hola Party House! Tengo un problema pagando la garantía de mi reserva ' + r.codigo + '.')}" target="_blank" rel="noopener">Escribir por WhatsApp</a></div>`);
+      }
       return;
     }
 
