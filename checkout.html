@@ -202,9 +202,20 @@
                 <span class="err-msg">Selecciona comuna</span>
               </div>
             </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Dirección del evento</label>
+                <input type="text" name="direccion" required minlength="5" autocomplete="street-address" placeholder="Calle, número, casa o depto" />
+                <span class="err-msg">Ingresa la dirección donde instalamos</span>
+              </div>
+              <div class="form-field">
+                <label>Horario de instalación (opcional)</label>
+                <input type="text" name="horario" placeholder="Ej: 15:00" />
+              </div>
+            </div>
             <div class="form-field">
               <label>Comentarios (opcional)</label>
-              <textarea name="notes" placeholder="Dirección, accesos, horario preferido, alguna instrucción..."></textarea>
+              <textarea name="notes" placeholder="Accesos, estacionamiento, condominio, alguna instrucción..."></textarea>
             </div>
           </div>
 
@@ -215,7 +226,7 @@
           </div>
 
           <button type="submit" class="btn btn-mp btn-block" data-mode="mp" data-si="mp" style="padding:18px;font-size:16px;display:none">
-            Pagar abono <span data-v="abono">${PH.formatCLP(t.abono)}</span> con Mercado Pago →
+            <span>Pagar abono <span data-v="abono">${PH.formatCLP(t.abono)}</span> con Mercado Pago →</span>
           </button>
           <button type="submit" class="btn btn-wa btn-block" data-mode="wa" id="btn-wa" style="padding:18px;font-size:16px">
             Reservar por WhatsApp →
@@ -289,7 +300,7 @@
 
       const form = e.target;
       const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
-      const name = get('name'), phone = get('phone'), email = get('email'), comuna = get('comuna'), notes = get('notes');
+      const name = get('name'), phone = get('phone'), email = get('email'), comuna = get('comuna'), notes = get('notes'), direccion = get('direccion'), horario = get('horario');
 
       const curCart = PH.getCart();
       const lines = curCart.map(item => {
@@ -320,7 +331,7 @@ Saldo el día del evento: ${PH.formatCLP(t.saldo)}
 Nombre: ${name}
 Teléfono: ${phone}
 Email: ${email}
-Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
+Dirección del evento: ${direccion}, ${comuna}${horario ? `\nHorario de instalación: ${horario}` : ''}${notes ? `\nComentarios: ${notes}` : ''}`;
 
       PH.toast('✓ Pedido listo', 'success');
       const link = PH.waLink(msg);
@@ -370,7 +381,7 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map(c => ({ id: c.id, qty: c.qty, date: c.date })),
-          cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), notes: get('notes') }
+          cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), direccion: get('direccion'), horario: get('horario'), notes: get('notes') }
         })
       });
       const data = await r.json().catch(() => ({}));
@@ -387,6 +398,7 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
         falta_fecha: 'Falta la fecha de ' + (e.nombre || 'un producto') + '. Elígela en el carrito.',
         pagos_no_configurados: 'El pago online aún no está activo. Reserva por WhatsApp 🙌',
         datos_cliente_invalidos: 'Revisa tus datos de contacto.',
+        falta_direccion: 'Ingresa la dirección del evento.',
         varias_fechas: 'Cada pedido es para un solo día. Ajusta las fechas en el carrito.',
         comuna_sin_tarifa: 'Para esa comuna te cotizamos el flete por WhatsApp 🙌'
       };
@@ -406,6 +418,7 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
       if(f.name === 'phone' && !/^[\d\s+()-]{7,}$/.test(v)){ wrap.classList.add('error'); valid=false; }
       if(f.name === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ wrap.classList.add('error'); valid=false; }
       if(f.name === 'comuna' && !v){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'direccion' && v.length < 5){ wrap.classList.add('error'); valid=false; }
     });
     return valid;
   }

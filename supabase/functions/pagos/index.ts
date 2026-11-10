@@ -486,8 +486,9 @@ async function crear(req: Request) {
 
   const cliente = {
     nombre: clip(c.name, 80), telefono: clip(c.phone, 30), email: clip(c.email, 120),
-    comuna: clip(c.comuna, 60), notas: clip(c.notes, 600),
+    comuna: clip(c.comuna, 60), notas: clip(c.notes, 600), direccion: clip(c.direccion, 200), horario: clip(c.horario, 60),
   };
+  if (cliente.direccion.length < 5) return json(req, { error: 'falta_direccion' }, 400);
   if (cliente.nombre.length < 2 || !/^[\d\s+()-]{7,}$/.test(cliente.telefono) ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email) || !cliente.comuna) {
     return json(req, { error: 'datos_cliente_invalidos' }, 400);
@@ -523,7 +524,7 @@ async function crear(req: Request) {
   const { data: res, error } = await db.from('reservas').insert({
     codigo, items: lineas, fechas, total, abono, flete, garantia_monto: ajustes.garantia_monto,
     cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email,
-    comuna: cliente.comuna, notas: cliente.notas || null,
+    comuna: cliente.comuna, direccion: cliente.direccion, horario: cliente.horario || null, notas: cliente.notas || null,
   }).select('id').single();
   if (error) throw error;
 

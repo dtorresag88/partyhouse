@@ -101,7 +101,10 @@ export function correoCliente(r: any, prueba: boolean) {
     </tr><tr>
       <td style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;padding-top:6px">Fecha del evento</td>
       <td style="text-align:right;font-weight:bold;padding-top:6px">${esc(fechas.join(' · '))}</td>
-    </tr></table>
+    </tr>${r.direccion ? `<tr>
+      <td style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:1px;padding-top:6px">Lugar</td>
+      <td style="text-align:right;padding-top:6px">${esc([r.direccion, r.comuna].filter(Boolean).join(', '))}${r.horario ? ` · ${esc(r.horario)}` : ''}</td>
+    </tr>` : ''}</table>
 
     <table style="width:100%;border-collapse:collapse;font-size:14px">${filasItems(items)}</table>
 

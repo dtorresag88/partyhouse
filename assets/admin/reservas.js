@@ -403,7 +403,7 @@
           <div class="row2"><label class="f">Fecha del evento<input type="date" name="fecha" required></label>
             <label class="f">Comuna<select name="comuna"><option value="">Elige…</option>${A.state.comunas.filter((c) => c.activa).map((c) => `<option value="${esc(c.nombre)}">${esc(c.nombre)} · ${clp(c.valor)}</option>`).join("")}<option value="__otra">Otra (escribir)</option></select></label></div>
           <label class="f" id="otra-wrap" hidden>Nombre de la comuna<input name="comuna_otra" placeholder="Ej: Pirque"></label>
-          <div class="row2"><label class="f">Dirección<input name="direccion" placeholder="Calle, número, casa/depto"></label>
+          <div class="row2"><label class="f">Dirección del evento<input name="direccion" required minlength="5" placeholder="Calle, número, casa/depto"></label>
             <label class="f">Horario de instalación<input name="horario" placeholder="Ej: 15:00"></label></div>
           <p class="help" id="dia-info" style="margin:-4px 0 0"></p>
         </div>
@@ -493,6 +493,7 @@
       if (!f.fecha.value) return err("Elige la fecha del evento");
       if (!items.length) return err("Agrega al menos un producto");
       if (!comunaSel()) return err("Indica la comuna");
+      if (f.direccion.value.trim().length < 5) return err("Indica la dirección del evento");
       const btn = f.querySelector("button.btn-orange"); btn.disabled = true; err("");
       try {
         const codigo = await A.rpc("admin_crear_reserva", { p: {
