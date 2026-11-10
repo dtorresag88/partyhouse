@@ -66,7 +66,8 @@
         <h3 style="margin-bottom:8px">Reservas</h3>
         ${rs.length ? rs.map((r) => `<a href="#/reservas/${esc(r.codigo)}" data-x style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;color:var(--ink);text-decoration:none">
           <span class="mono">${esc(r.codigo)}</span><span style="flex:1"><b>${esc(r.cliente_nombre)}</b> · ${esc(r.comuna)}<br><small class="muted">${esc(A.resumenItems(r))}</small></span>${A.estadoBadge(r)}</a>`).join("") : `<p class="muted">Sin reservas este día.</p>`}
-        <div style="margin:10px 0 16px"><a class="btn btn-sm btn-orange" href="#/reservas/nueva?fecha=${k}" data-x>＋ Crear reserva este día</a></div>
+        <div class="btn-group" style="margin:10px 0 16px"><a class="btn btn-sm btn-orange" href="#/reservas/nueva?fecha=${k}" data-x>＋ Crear reserva este día</a>
+          ${rs.some((r) => r.estado === "pagado") ? `<button class="btn btn-sm" id="d-equipo">👷 Enviar el día al equipo</button>` : ""}</div>
         <h3 style="margin-bottom:8px">Disponibilidad de productos únicos</h3>
         <div class="tbl-wrap"><table class="tbl"><tbody>${unicos.map((p) => {
           const b = bs.find((x) => x.producto_id === p.id);
@@ -79,6 +80,7 @@
         foot: cerrado ? `<button class="btn" data-unb="${cerrado.id}">Abrir este día</button><button class="btn btn-primary" data-x>Listo</button>`
           : `<button class="btn btn-danger" id="d-cerrar">Cerrar todo el día</button><button class="btn btn-primary" data-x>Listo</button>` });
       const quien = A.state.user?.email;
+      $("#d-equipo", md.el)?.addEventListener("click", () => { const conf = rs.filter((r) => r.estado === "pagado"); md.close(); A.enviarEquipo(conf); });
       md.el.querySelectorAll("[data-bl]").forEach((b) => (b.onclick = async () => {
         const v = await A.ask({ title: `Bloquear ${A.prod(b.dataset.bl)?.nombre || ""}`, intro: "No se podrá reservar este producto (ni los que comparten su equipo) ese día.", ok: "Bloquear", fields: [{ name: "motivo", label: "Motivo (opcional)", value: "Reservado por fuera" }] });
         if (!v) return; const motivo = v.motivo;

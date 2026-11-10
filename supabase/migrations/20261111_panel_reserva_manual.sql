@@ -77,12 +77,13 @@ begin
   end loop;
 
   insert into public.reservas (codigo, estado, origen, items, fechas, total, abono, flete, descuento, monto_pagado,
-    abono_medio, cliente_nombre, cliente_telefono, cliente_email, comuna, notas, notas_internas, pagada_en,
+    abono_medio, cliente_nombre, cliente_telefono, cliente_email, comuna, direccion, horario, notas, notas_internas, pagada_en,
     garantia_monto, garantia_estado, aviso_enviado_en, historial)
   values (v_codigo, 'pagado', 'manual', v_lineas, array[v_fecha], greatest(v_total, 1), greatest(v_abono, 1), v_flete, v_desc, v_pagado,
     coalesce(nullif(p->>'abono_medio', ''), 'transferencia'),
     trim(p->'cliente'->>'nombre'), trim(p->'cliente'->>'telefono'), nullif(lower(trim(p->'cliente'->>'email')), ''),
-    coalesce(nullif(p->>'comuna', ''), 'Sin comuna'), nullif(p->>'notas', ''), nullif(p->>'notas_internas', ''), now(),
+    coalesce(nullif(p->>'comuna', ''), 'Sin comuna'), nullif(trim(p->>'direccion'), ''), nullif(trim(p->>'horario'), ''),
+    nullif(p->>'notas', ''), nullif(p->>'notas_internas', ''), now(),
     case when coalesce((p->>'garantia')::boolean, true) then v_aj.garantia_monto else 0 end,
     case when coalesce((p->>'garantia')::boolean, true) then 'pendiente' else 'no_aplica' end,
     now(),  -- reserva manual: no se envía el aviso de "abono pagado" al dueño

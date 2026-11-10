@@ -36,6 +36,77 @@
     return out;
   };
 
+  // ------------------------------------------------------------ llamadas a la función "pagos" con la sesión del admin
+  A.pagosApi = async (ruta, body) => {
+    const { data: { session } } = await A.sb.auth.getSession();
+    const resp = await fetch(A.CFG.PAGOS_URL + "/" + ruta, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session?.access_token }, body: JSON.stringify(body) });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw Object.assign(new Error({ sin_correo: "La reserva no tiene correo", sin_saldo: "No hay saldo pendiente", no_autorizado: "Sesión vencida: vuelve a ingresar", reserva_no_confirmada: "La reserva no está confirmada" }[data.error] || data.error || "No se pudo completar"), data);
+    return data;
+  };
+  A.lugar = (r) => [r.direccion, r.comuna].filter(Boolean).join(", ");
+  A.mapa = (r) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(A.lugar(r) + ", Chile")}`;
+
+  // Mensaje con todo lo que necesita el equipo que instala
+  A.textoEquipo = (r) => {
+    const f = A.eventoLargo(A.fechaEv(r));
+    const lineas = r.items.map((i) => {
+      const p = A.prod(i.id);
+      const inc = (p?.incluye || []).filter((x) => !/instalaci[oó]n|retiro|transporte/i.test(x));
+      return `• ${i.qty}× ${i.nombre}${p?.tamano ? ` (${p.tamano})` : ""}${inc.length ? `\n   ↳ ${inc.join(", ")}` : ""}`;
+    }).join("\n");
+    const saldo = r.saldo_pagado_en || A.saldo(r) === 0 ? "✅ Saldo pagado" : `💰 *Cobrar saldo: ${clp(A.saldo(r))}*`;
+    const gar = { pendiente: `🛡️ Garantía ${clp(r.garantia_monto)}: *pendiente*`, pagada: "🛡️ Garantía: pagada ✅", devuelta: "🛡️ Garantía: devuelta" }[r.garantia_estado] || "";
+    return [`🎉 *PARTY HOUSE · ${r.codigo}*`,
+      `📅 *${f.charAt(0).toUpperCase() + f.slice(1)}*${r.horario ? ` · ⏰ ${r.horario}` : ""}`,
+      `👤 ${r.cliente_nombre}`, `📱 ${r.cliente_telefono}`,
+      `📍 ${A.lugar(r) || "Dirección por confirmar"}`, `🗺️ ${A.mapa(r)}`, "",
+      `📦 *Llevar e instalar:*`, lineas, "", saldo, gar,
+      r.notas ? `💬 Cliente: ${r.notas}` : "", r.notas_internas ? `📝 Notas: ${r.notas_internas}` : ""].filter((x, i, a) => x !== "" || (a[i - 1] !== "" && i < a.length - 1)).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+  A.enviarEquipo = (rows) => {
+    const texto = rows.map(A.textoEquipo).join("\n\n———————————\n\n");
+    const m = A.modal({ title: rows.length > 1 ? `Enviar al equipo · ${rows.length} eventos` : "Enviar al equipo", wide: true,
+      body: `<p class="muted" style="margin-top:0">Revisa o ajusta el mensaje y envíalo al grupo de WhatsApp de los instaladores.</p><textarea id="eq-txt" rows="16" style="font-family:inherit">${esc(texto)}</textarea>`,
+      foot: `<button class="btn" id="eq-copy">📋 Copiar</button><a class="btn btn-green" id="eq-wa" target="_blank" rel="noopener">Abrir WhatsApp →</a>` });
+    const val = () => m.el.querySelector("#eq-txt").value;
+    const wa = m.el.querySelector("#eq-wa");
+    const upd = () => (wa.href = `https://wa.me/?text=${encodeURIComponent(val())}`);
+    m.el.querySelector("#eq-txt").addEventListener("input", upd); upd();
+    m.el.querySelector("#eq-copy").onclick = () => navigator.clipboard.writeText(val()).then(() => A.toast("Copiado: pégalo en el grupo del equipo"), () => A.toast("No se pudo copiar", true));
+  };
+
+  // Cobro del saldo pendiente: link de Mercado Pago por correo, WhatsApp o copiado
+  A.textoSaldo = (r, link) => {
+    const n = (r.cliente_nombre || "").split(" ")[0];
+    return `¡Hola ${n}! Te escribimos de Party House 🎉 Para tu evento del ${A.eventoLargo(A.fechaEv(r))} (reserva ${r.codigo}) te queda un saldo de ${clp(A.saldo(r))}.${link ? `\nPuedes pagarlo aquí con Mercado Pago: ${link}` : ""}\nSi prefieres transferir, respóndenos por aquí y te enviamos los datos. ¡Gracias!`;
+  };
+  A.cobrarSaldo = (r, alTerminar) => {
+    const monto = A.saldo(r);
+    const m = A.modal({ title: "Cobrar saldo pendiente", body: `
+      <dl class="kv"><dt>Total</dt><dd>${clp(r.total)}</dd><dt>Ya pagado (abono)</dt><dd>${clp(r.monto_pagado || 0)}</dd><dt><b>Saldo pendiente</b></dt><dd><b>${clp(monto)}</b></dd></dl>
+      <p class="muted">Se genera un link de Mercado Pago por ${clp(monto)}. Cuando el cliente pague, la reserva queda con <b>saldo pagado</b> sola y te llega un aviso.</p>
+      <div class="stack" style="gap:8px">
+        ${r.cliente_email ? `<button class="btn btn-primary" data-s="mail">✉️ Enviar por correo a ${esc(r.cliente_email)}</button>` : `<p class="help" style="margin:0">Sin correo: envíalo por WhatsApp o copia el link.</p>`}
+        <button class="btn btn-green" data-s="wa">📱 Enviar por WhatsApp</button>
+        <button class="btn" data-s="copy">📋 Copiar link de pago</button>
+      </div><p class="form-error" id="s-err"></p>` });
+    m.el.querySelectorAll("[data-s]").forEach((b) => (b.onclick = async () => {
+      const modo = b.dataset.s;
+      // WhatsApp: se abre la ventana antes de pedir el link para que el navegador no la bloquee
+      const win = modo === "wa" ? window.open("about:blank", "_blank") : null;
+      b.disabled = true;
+      try {
+        const d = await A.pagosApi("saldo", { codigo: r.codigo, enviar_correo: modo === "mail" });
+        Object.assign(r, { saldo_link: d.link, saldo_link_monto: d.monto });
+        if (modo === "mail") A.toast("Correo enviado al cliente");
+        if (modo === "wa") { win.location.href = A.wa(r.cliente_telefono, A.textoSaldo(r, d.link)); await A.actualizarReserva(r, {}, `Cobro del saldo ${clp(d.monto)} enviado por WhatsApp`); }
+        if (modo === "copy") { await navigator.clipboard.writeText(d.link); A.toast("Link copiado"); }
+        m.close(); alTerminar?.();
+      } catch (e) { win?.close(); b.disabled = false; m.el.querySelector("#s-err").textContent = e.message; }
+    }));
+  };
+
   // ------------------------------------------------------------ plantillas de WhatsApp
   A.waTemplates = (r) => {
     const n = (r.cliente_nombre || "").split(" ")[0];
@@ -51,6 +122,7 @@
     if (r.estado === "pagado" && r.garantia_estado === "pendiente" && r.garantia_monto > 0) {
       list.splice(2, 0, ["Pedir garantía", `¡Hola ${n}! Para dejar todo listo para tu evento del ${f} necesitamos la garantía reembolsable de ${clp(r.garantia_monto)} (te la devolvemos íntegra después del retiro si todo está en orden).${r.garantia_link ? `\nPuedes pagarla aquí: ${r.garantia_link}` : " Puedes transferirla y enviarnos el comprobante por aquí."}`]);
     }
+    if (r.estado === "pagado" && !r.saldo_pagado_en && A.saldo(r) > 0) list.splice(2, 0, ["Cobrar saldo", A.textoSaldo(r, r.saldo_link && r.saldo_link_monto === A.saldo(r) ? r.saldo_link : null)]);
     if (r.garantia_estado === "pagada") list.push(["Garantía devuelta", `¡Hola ${n}! Te devolvimos la garantía de ${clp(r.garantia_monto)} de tu reserva ${r.codigo} 💸. ¡Gracias por preferirnos!`]);
     if (["pendiente", "rechazado"].includes(r.estado)) list.splice(1, 0, ["Recuperar reserva", `¡Hola ${n}! Vimos que tu reserva para el ${f} (${items}) quedó sin pagar. ¿Te ayudamos a completarla? La fecha aún no queda bloqueada hasta recibir el abono 🎉`]);
     return list;
@@ -65,7 +137,7 @@
       <header><img src="${base}assets/logo-dark.png" alt=""><div><h1>Hoja de instalación</h1><p>Party House · WhatsApp +56 9 5698 1681</p></div>
         <div class="num"><b>${esc(r.codigo)}</b><br>${esc(A.eventoLargo(A.fechaEv(r)))}</div></header>
       <div class="two"><div><h3>Cliente</h3><p><b>${esc(r.cliente_nombre)}</b><br>${esc(r.cliente_telefono)}<br>${esc(r.cliente_email || "")}</p></div>
-        <div><h3>Lugar</h3><p><b>${esc(r.comuna)}</b>${r.notas ? `<br>${esc(r.notas)}` : ""}</p></div></div>
+        <div><h3>Lugar${r.horario ? ` · ${esc(r.horario)}` : ""}</h3><p><b>${esc(A.lugar(r))}</b>${r.notas ? `<br>${esc(r.notas)}` : ""}</p></div></div>
       ${r.notas_internas ? `<p class="note"><b>Notas internas:</b> ${esc(r.notas_internas)}</p>` : ""}
       <table><thead><tr><th>✓</th><th>Producto</th><th>Cant.</th><th>Total</th></tr></thead><tbody>
       ${r.items.map((i) => `<tr><td class="box">☐</td><td>${esc(i.nombre)}</td><td class="c">${i.qty}</td><td class="r">${clp(i.precio * i.qty)}</td></tr>`).join("")}
@@ -101,7 +173,7 @@
       return lista;
     };
     A.render(`<div class="page">
-      ${A.head({ title: "Reservas", actions: `<button class="btn" id="r-print">🖨️ Imprimir hojas</button><button class="btn" id="r-csv">Exportar</button><a class="btn btn-orange" href="#/reservas/nueva">＋ Crear reserva</a>` })}
+      ${A.head({ title: "Reservas", actions: `<button class="btn" id="r-equipo">👷 Enviar al equipo</button><button class="btn" id="r-print">🖨️ Imprimir hojas</button><button class="btn" id="r-csv">Exportar</button><a class="btn btn-orange" href="#/reservas/nueva">＋ Crear reserva</a>` })}
       <div class="card flush">
         <div class="tabs" id="r-tabs">${TABS.map(([k, l]) => `<button data-tab="${k}">${l}<span class="c"></span></button>`).join("")}</div>
         <div class="toolbar"><div class="grow"><input id="r-q" type="search" placeholder="Buscar por código, cliente, teléfono, comuna o producto" value="${esc(st.q)}"></div></div>
@@ -129,6 +201,7 @@
     $("#r-tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { st.tab = b.dataset.tab; draw(); } };
     $("#r-q").oninput = A.debounce((e) => { st.q = e.target.value.trim(); draw(); }, 200);
     $("#r-body").onclick = (e) => { const tr = e.target.closest("tr[data-c]"); if (tr) A.go(`/reservas/${tr.dataset.c}`); };
+    $("#r-equipo").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado" && A.fechaEv(r) >= hoy()); rows.length ? A.enviarEquipo(rows) : A.toast("No hay eventos próximos confirmados en esta pestaña", true); };
     $("#r-print").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado"); rows.length ? A.imprimir(rows) : A.toast("No hay reservas confirmadas en esta pestaña", true); };
     $("#r-csv").onclick = () => A.csv(`reservas-${hoy()}.csv`, [["Código", "Fecha evento", "Estado", "Etapa", "Origen", "Cliente", "Teléfono", "Correo", "Comuna", "Productos", "Flete", "Descuento", "Total", "Abono recibido", "Saldo", "Saldo pagado", "Garantía", "Creada"],
       ...visible().map((r) => [r.codigo, A.fechaEv(r), A.ESTADO[r.estado] || r.estado, A.ETAPA[r.etapa] || "", r.origen, r.cliente_nombre, r.cliente_telefono, r.cliente_email || "", r.comuna, A.resumenItems(r), r.flete, r.descuento, r.total, r.monto_pagado || 0, A.saldo(r), r.saldo_pagado_en ? "sí" : "no", A.GARANTIA[r.garantia_estado] || "", A.dayKey(r.creada)])]);
@@ -148,7 +221,7 @@
       A.render(`<div class="page">
         ${A.head({ title: `<span class="mono">${esc(r.codigo)}</span>`, back: "/reservas", badges: ` ${A.estadoBadge(r)} ${A.etapaBadge(r)} ${A.garantiaBadge(r)}`,
           sub: `Evento: <b>${esc(A.eventoLargo(A.fechaEv(r)))}</b>${d >= 0 ? ` (${d === 0 ? "hoy" : d === 1 ? "mañana" : `en ${d} días`})` : ""} · ${r.origen === "manual" ? "creada desde el panel" : "reservada en el sitio"} el ${A.date(r.creada)}`,
-          actions: `<div class="dd"><button class="btn btn-green" id="d-wa">WhatsApp ▾</button><div class="dd-menu" id="d-wa-menu" hidden>${A.waTemplates(r).map(([l], i) => `<button data-wa="${i}">${esc(l)}</button>`).join("")}</div></div>
+          actions: `${conf ? `<button class="btn" id="d-equipo">👷 Enviar al equipo</button>` : ""}<div class="dd"><button class="btn btn-green" id="d-wa">WhatsApp ▾</button><div class="dd-menu" id="d-wa-menu" hidden>${A.waTemplates(r).map(([l], i) => `<button data-wa="${i}">${esc(l)}</button>`).join("")}</div></div>
             <div class="dd"><button class="btn" id="d-more">Más acciones ▾</button><div class="dd-menu" id="d-more-menu" hidden>
               <button data-a="print">🖨️ Hoja de instalación</button>
               ${r.cliente_email && conf ? `<button data-a="mail">✉️ ${r.confirmacion_cliente_en ? "Reenviar" : "Enviar"} confirmación por correo</button>` : ""}
@@ -181,10 +254,11 @@
             ${conf ? `<div class="card"><div class="card-head"><h2>Pagos</h2>${A.saldoBadge(r)}</div>
               <dl class="kv">
                 <dt>Abono recibido</dt><dd><b>${clp(r.monto_pagado || 0)}</b> <small class="muted">· ${esc(A.MEDIO[r.abono_medio] || r.abono_medio)}${r.mp_payment_id ? ` #${esc(r.mp_payment_id)}` : ""}</small></dd>
-                <dt>Saldo</dt><dd>${r.saldo_pagado_en ? `Pagado el ${A.date(r.saldo_pagado_en)} · ${esc(A.MEDIO[r.saldo_medio] || r.saldo_medio || "")}` : `<b>${clp(A.saldo(r))}</b> por cobrar el día del evento`}</dd>
+                <dt>Saldo</dt><dd>${r.saldo_pagado_en ? `Pagado el ${A.date(r.saldo_pagado_en)} · ${esc(A.MEDIO[r.saldo_medio] || r.saldo_medio || "")}${r.saldo_payment_id ? ` #${esc(r.saldo_payment_id)}` : ""}` : `<b>${clp(A.saldo(r))}</b> por cobrar`}</dd>
+                ${!r.saldo_pagado_en && r.saldo_link ? `<dt>Link de pago enviado</dt><dd><a href="${esc(r.saldo_link)}" target="_blank" rel="noopener">Mercado Pago · ${clp(r.saldo_link_monto)}</a></dd>` : ""}
               </dl>
               <div class="btn-group" style="margin-top:12px">
-                ${!r.saldo_pagado_en && A.saldo(r) > 0 ? `<button class="btn btn-primary" id="p-saldo">Registrar pago del saldo</button>` : ""}
+                ${!r.saldo_pagado_en && A.saldo(r) > 0 ? `<button class="btn btn-orange" id="p-cobrar">💳 Cobrar saldo al cliente</button><button class="btn btn-primary" id="p-saldo">Registrar pago del saldo</button>` : ""}
                 ${r.saldo_pagado_en ? `<button class="btn btn-plain" id="p-saldo-undo">Deshacer pago del saldo</button>` : ""}
                 ${r.origen === "manual" ? `<button class="btn btn-plain" id="p-abono">Editar abono recibido</button>` : ""}
               </div></div>` : ""}
@@ -217,9 +291,10 @@
               <p style="margin:0 0 6px"><b>${esc(r.cliente_nombre)}</b></p>
               <p style="margin:0 0 6px"><a href="${A.wa(r.cliente_telefono)}" target="_blank" rel="noopener">📱 ${esc(r.cliente_telefono)}</a></p>
               ${r.cliente_email ? `<p style="margin:0 0 6px"><a href="mailto:${esc(r.cliente_email)}">✉️ ${esc(r.cliente_email)}</a></p>` : `<p class="muted" style="margin:0 0 6px">Sin correo</p>`}
-              <p style="margin:0">📍 ${esc(r.comuna)}</p>
+              <p style="margin:0 0 6px">📍 ${esc(A.lugar(r))} · <a href="${A.mapa(r)}" target="_blank" rel="noopener">Mapa</a></p>
+              <p style="margin:0">⏰ ${r.horario ? esc(r.horario) : `<span class="muted">Horario por coordinar</span>`}</p>
               ${r.notas ? `<div class="sep"></div><p class="small" style="margin:0"><b>Comentario del cliente:</b><br>${esc(r.notas)}</p>` : ""}
-              <div class="sep"></div><button class="btn btn-sm btn-plain" id="c-edit">Editar datos del cliente</button>
+              <div class="sep"></div><button class="btn btn-sm btn-plain" id="c-edit">Editar cliente, dirección y horario</button>
             </div>
             <div class="card"><h2 style="margin-bottom:8px">Notas internas</h2>
               <textarea id="n-int" rows="4" placeholder="Dirección exacta, accesos, horario de instalación… (solo el equipo las ve)">${esc(r.notas_internas || "")}</textarea>
@@ -234,6 +309,8 @@
     };
     function bind() {
       A.dropdown($("#d-wa"), $("#d-wa-menu"));
+      $("#d-equipo")?.addEventListener("click", () => A.enviarEquipo([r]));
+      $("#p-cobrar")?.addEventListener("click", () => A.cobrarSaldo(r, draw));
       A.dropdown($("#d-more"), $("#d-more-menu"));
       $("#d-wa-menu").onclick = (e) => { const b = e.target.closest("[data-wa]"); if (b) window.open(A.wa(r.cliente_telefono, A.waTemplates(r)[+b.dataset.wa][1]), "_blank", "noopener"); };
       $("#d-more-menu").onclick = async (e) => {
@@ -288,8 +365,11 @@
           { name: "nombre", label: "Nombre", value: r.cliente_nombre, required: true },
           { name: "telefono", label: "Teléfono", type: "tel", value: r.cliente_telefono, required: true },
           { name: "email", label: "Correo", type: "email", value: r.cliente_email || "", help: "Sin correo no recibe confirmaciones ni recordatorios de garantía" },
+          { name: "direccion", label: "Dirección del evento", value: r.direccion || "", placeholder: "Calle, número, casa/depto" },
+          { name: "comuna", label: "Comuna", value: r.comuna || "" },
+          { name: "horario", label: "Horario de instalación", value: r.horario || "", placeholder: "Ej: 15:00 o 12:00-14:00" },
           { name: "notas", label: "Comentario del cliente", type: "textarea", value: r.notas || "" }] });
-        if (v) guardar({ cliente_nombre: v.nombre, cliente_telefono: v.telefono, cliente_email: v.email.toLowerCase() || null, notas: v.notas || null }, "Datos del cliente actualizados");
+        if (v) guardar({ cliente_nombre: v.nombre, cliente_telefono: v.telefono, cliente_email: v.email.toLowerCase() || null, direccion: v.direccion || null, comuna: v.comuna || r.comuna, horario: v.horario || null, notas: v.notas || null }, "Datos del cliente actualizados");
       };
     }
 
@@ -323,6 +403,8 @@
           <div class="row2"><label class="f">Fecha del evento<input type="date" name="fecha" required></label>
             <label class="f">Comuna<select name="comuna"><option value="">Elige…</option>${A.state.comunas.filter((c) => c.activa).map((c) => `<option value="${esc(c.nombre)}">${esc(c.nombre)} · ${clp(c.valor)}</option>`).join("")}<option value="__otra">Otra (escribir)</option></select></label></div>
           <label class="f" id="otra-wrap" hidden>Nombre de la comuna<input name="comuna_otra" placeholder="Ej: Pirque"></label>
+          <div class="row2"><label class="f">Dirección<input name="direccion" placeholder="Calle, número, casa/depto"></label>
+            <label class="f">Horario de instalación<input name="horario" placeholder="Ej: 15:00"></label></div>
           <p class="help" id="dia-info" style="margin:-4px 0 0"></p>
         </div>
         <div class="card"><div class="card-head"><h2>Productos</h2><button type="button" class="btn btn-sm" id="add-l">＋ Agregar producto</button></div>
@@ -330,7 +412,7 @@
         <div class="card"><h2 style="margin-bottom:12px">Cliente</h2>
           <div class="row2"><label class="f">Nombre<input name="nombre" required></label><label class="f">Teléfono / WhatsApp<input name="telefono" type="tel" required placeholder="+56 9 …"></label></div>
           <label class="f">Correo <small>(opcional; sin correo no recibe confirmación ni recordatorios de garantía)</small><input name="email" type="email"></label>
-          <label class="f">Comentario del cliente / dirección<textarea name="notas" rows="2"></textarea></label>
+          <label class="f">Comentario del cliente<textarea name="notas" rows="2" placeholder="Accesos, estacionamiento, detalles del evento…"></textarea></label>
           <label class="f">Notas internas<textarea name="notas_internas" rows="2" placeholder="Solo las ve el equipo"></textarea></label>
         </div>
         <div class="card"><h2 style="margin-bottom:12px">Pago</h2>
@@ -414,7 +496,7 @@
       const btn = f.querySelector("button.btn-orange"); btn.disabled = true; err("");
       try {
         const codigo = await A.rpc("admin_crear_reserva", { p: {
-          fecha: f.fecha.value, comuna: comunaSel(), items,
+          fecha: f.fecha.value, comuna: comunaSel(), items, direccion: f.direccion.value.trim(), horario: f.horario.value.trim(),
           ...(f.flete.value !== "" ? { flete: A.int(f.flete.value) } : {}),
           descuento: A.int(f.descuento.value) || 0, abono_pagado: A.int(f.abono_pagado.value) || 0, abono_medio: f.abono_medio.value,
           garantia: f.garantia.checked, forzar: f.forzar.checked, notas: f.notas.value.trim(), notas_internas: f.notas_internas.value.trim(),

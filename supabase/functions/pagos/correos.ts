@@ -48,7 +48,7 @@ export function correoDueno(r: any, prueba: boolean) {
     ${esc(r.cliente_nombre)}<br>
     📞 <a href="${wa}">${esc(r.cliente_telefono)}</a> (WhatsApp)<br>
     ✉️ ${esc(r.cliente_email)}<br>
-    📍 ${esc(r.comuna)}
+    📍 ${esc([r.direccion, r.comuna].filter(Boolean).join(', '))}${r.horario ? ` · ⏰ ${esc(r.horario)}` : ''}
     ${r.notas ? `<br>📝 ${esc(r.notas)}` : ''}
   </p>
   <p style="color:#888;font-size:12px;margin-top:20px">Pago Mercado Pago #${esc(r.mp_payment_id)} · Al cliente se le envió su confirmación por correo. Las fechas de productos con bloqueo automático ya quedaron bloqueadas en el sitio.</p>
@@ -208,6 +208,45 @@ export function correoGarantiaDueno(r: any, prueba: boolean) {
     (el sistema lo registra y le avisa al cliente).</p>
 </div>`;
   return { subject: `${prueba ? '[PRUEBA] ' : ''}🛡️ Garantía pagada ${clp(r.garantia_monto)} · ${r.codigo}`, html };
+}
+
+// ---------- saldo ----------
+export function correoSaldo(r: any, monto: number, link: string, prueba: boolean) {
+  const nombre = String(r.cliente_nombre).trim().split(/\s+/)[0];
+  const fecha = mayus(fechaLarga(r.fechas[0]));
+  const html = marco(`
+    <h1 style="font-family:'Arial Black',Arial,sans-serif;font-size:24px;line-height:1.15;margin:0 0 10px">${esc(nombre)}, te falta el saldo de tu reserva 🎉</h1>
+    <p style="margin:0 0 16px;color:#333">Para tu evento del <b>${esc(fecha)}</b> (reserva <b>${esc(r.codigo)}</b>) queda pendiente un saldo de <b>${clp(monto)}</b>.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:15px;margin:0 0 6px">
+      <tr><td style="padding:4px 0;color:#444">Total del arriendo</td><td style="padding:4px 0;text-align:right">${clp(r.total)}</td></tr>
+      <tr><td style="padding:4px 0;color:#444">Ya pagado</td><td style="padding:4px 0;text-align:right">${clp(r.total - monto)}</td></tr>
+      <tr><td style="padding:4px 0;font-weight:bold">Saldo pendiente</td><td style="padding:4px 0;text-align:right;font-weight:bold">${clp(monto)}</td></tr>
+    </table>
+    <div style="text-align:center;margin:22px 0">
+      <a href="${link}" style="display:inline-block;background:#009ee3;color:#fff;text-decoration:none;font-weight:bold;padding:15px 28px;border-radius:999px;font-size:16px">Pagar saldo ${clp(monto)} con Mercado Pago →</a>
+    </div>
+    <p style="font-size:13px;color:#666;margin:0">¿Prefieres transferir o pagar el día del evento? Responde este correo o escríbenos por
+      <a href="https://wa.me/${WHATSAPP}" style="color:#15111f">WhatsApp</a> al +56 9 5698 1681.</p>`, prueba);
+  return { subject: `${prueba ? '[PRUEBA] ' : ''}Saldo pendiente ${clp(monto)} · tu reserva ${r.codigo}`, html };
+}
+
+export function correoSaldoRecibido(r: any, monto: number, prueba: boolean) {
+  const nombre = String(r.cliente_nombre).trim().split(/\s+/)[0];
+  const html = marco(`
+    <h1 style="font-family:'Arial Black',Arial,sans-serif;font-size:24px;line-height:1.15;margin:0 0 10px">¡Saldo recibido, ${esc(nombre)}! ✓</h1>
+    <p style="margin:0;color:#333">Recibimos el pago de <b>${clp(monto)}</b> de tu reserva <b>${esc(r.codigo)}</b> (${esc(mayus(fechaLarga(r.fechas[0])))}).
+      Tu arriendo quedó <b>100% pagado</b>. ¡Nos vemos en la fiesta! 🎉</p>`, prueba);
+  return { subject: `${prueba ? '[PRUEBA] ' : ''}✓ Saldo recibido · ${r.codigo}`, html };
+}
+
+export function correoSaldoDueno(r: any, monto: number, paymentId: string, prueba: boolean) {
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#111">
+  ${prueba ? '<p style="background:#fff3cd;padding:8px 12px;border-radius:6px"><b>PRUEBA</b></p>' : ''}
+  <h2 style="margin:0 0 6px">💰 Saldo pagado · ${esc(r.codigo)}</h2>
+  <p style="font-size:15px;line-height:1.6;margin:0">${esc(r.cliente_nombre)} pagó el saldo de <b>${clp(monto)}</b> para el evento del
+    <b>${esc(fechaLarga(r.fechas[0]))}</b> en ${esc(r.comuna)}. La reserva quedó 100% pagada.<br>Pago Mercado Pago #${esc(paymentId)}.</p>
+</div>`;
+  return { subject: `${prueba ? '[PRUEBA] ' : ''}💰 Saldo pagado ${clp(monto)} · ${r.codigo}`, html };
 }
 
 // ---------- formulario de contacto ----------

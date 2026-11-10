@@ -9,6 +9,7 @@
 //   POST /recordatorios   → (tarea diaria pg_cron, header x-cron-key) pide la garantía desde 7 días antes del evento
 //   GET  /datos.js        → catálogo, disponibilidad, flete y ajustes para el sitio (window.PH_*), desde la base
 //   POST /confirmar       → (panel, sesión de administrador) envía la confirmación por correo de una reserva
+//   POST /saldo           → (panel, sesión de administrador) link de Mercado Pago por el saldo (ref "<codigo>-S"), opcional por correo
 //   GET  /modo            → 'produccion' | 'prueba' | 'desactivado' (el checkout muestra el botón solo en producción)
 //
 // Secretos (Supabase → Edge Functions → Secrets):
@@ -21,7 +22,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import {
   correoCliente, correoContacto, correoDueno, correoGarantia, correoGarantiaDevuelta, correoGarantiaDueno,
-  correoGarantiaRecibida, enviarCorreo, REMITENTE,
+  correoGarantiaRecibida, correoSaldo, correoSaldoDueno, correoSaldoRecibido, enviarCorreo, REMITENTE,
 } from './correos.ts';
 
 const SITE = (Deno.env.get('SITE_URL') || 'https://partyhouse.cl').replace(/\/$/, '');
@@ -192,6 +193,7 @@ async function aplicarPago(paymentId: string) {
   const p = await mp('/v1/payments/' + encodeURIComponent(paymentId));
   const ref = String(p.external_reference || '');
   if (ref.endsWith('-G')) return aplicarGarantia(p, ref.slice(0, -2));
+  if (ref.endsWith('-S')) return aplicarSaldo(p, ref.slice(0, -2));
   const codigo = ref;
   if (!codigo) return null;
   const { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
@@ -365,6 +367,98 @@ async function recordatorios(req: Request) {
   return json(req, { hoy, resultado });
 }
 
+// ---------- saldo pendiente ----------
+// deno-lint-ignore no-explicit-any
+const saldoDe = (r: any) => Math.max((r.total || 0) - (r.monto_pagado || 0), 0);
+
+// Link de pago del saldo; se regenera si el monto cambió (p. ej. se editó la reserva)
+// deno-lint-ignore no-explicit-any
+async function linkSaldo(r: any, monto: number) {
+  if (r.saldo_link && r.saldo_link_monto === monto) return r.saldo_link as string;
+  const pref = await mp('/checkout/preferences', {
+    method: 'POST',
+    headers: { 'X-Idempotency-Key': `${r.codigo}-S-${monto}` },
+    body: JSON.stringify({
+      items: [{ id: r.codigo + '-S', title: `Saldo reserva ${r.codigo} · Party House`,
+        description: `Saldo del arriendo para el evento del ${r.fechas[0]} en ${r.comuna}.`,
+        category_id: 'services', quantity: 1, unit_price: monto, currency_id: 'CLP' }],
+      ...(r.cliente_email ? { payer: { name: r.cliente_nombre, email: r.cliente_email } } : {}),
+      external_reference: r.codigo + '-S',
+      back_urls: { success: `${SITE}/pago.html`, pending: `${SITE}/pago.html`, failure: `${SITE}/pago.html` },
+      auto_return: 'approved',
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/pagos/webhook`,
+      statement_descriptor: 'PARTYHOUSE',
+      metadata: { codigo: r.codigo, tipo: 'saldo' },
+    }),
+  });
+  await db.from('reservas').update({ saldo_link: pref.init_point, saldo_link_monto: monto }).eq('id', r.id);
+  return pref.init_point as string;
+}
+
+// Pago del saldo (referencia "<codigo>-S"). Solo confía en lo que devuelve la API de MP.
+// deno-lint-ignore no-explicit-any
+async function aplicarSaldo(p: any, codigo: string) {
+  const { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
+  if (!res) return null;
+  const monto = Math.round(Number(p.transaction_amount) || 0);
+  if (p.status === 'approved' && p.currency_id === 'CLP' && monto >= Math.min(saldoDe(res), res.saldo_link_monto || Infinity)) {
+    const ahora = new Date().toISOString();
+    const historial = [...(res.historial || []), { t: ahora, por: 'Mercado Pago', txt: `Saldo ${monto} pagado con Mercado Pago #${p.id}` }];
+    const { data: cambio } = await db.from('reservas').update({
+      saldo_pagado_en: p.date_approved || ahora, saldo_medio: 'mercadopago', saldo_payment_id: String(p.id),
+      historial, actualizada: ahora,
+    }).eq('id', res.id).is('saldo_pagado_en', null).select('*');
+    if (cambio?.length) {
+      const r = cambio[0];
+      await Promise.allSettled([
+        r.cliente_email ? enviarCorreo(resendKey(), 'saldo-ok-' + codigo, {
+          from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoSaldoRecibido(r, monto, esPrueba()),
+        }) : Promise.resolve(),
+        enviarCorreo(resendKey(), 'saldo-dueno-' + codigo, {
+          from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [await emailDueno()], ...(r.cliente_email ? { reply_to: r.cliente_email } : {}), ...correoSaldoDueno(r, monto, String(p.id), esPrueba()),
+        }),
+      ]).then((rs) => rs.forEach((x) => x.status === 'rejected' && console.error('correo saldo', x.reason)));
+      return r;
+    }
+  }
+  const { data: actual } = await db.from('reservas').select('*').eq('id', res.id).single();
+  return actual;
+}
+
+// Sesión de administrador del panel (JWT de Supabase Auth). Devuelve el correo o null.
+async function adminDesdeReq(req: Request) {
+  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data: u } = await db.auth.getUser(token);
+  if (!u?.user) return null;
+  const { data: adm } = await db.from('admins').select('user_id').eq('user_id', u.user.id).is('disabled_at', null).maybeSingle();
+  return adm ? (u.user.email || 'admin') : null;
+}
+
+// Panel: link de pago del saldo (y opcionalmente correo al cliente)
+async function saldo(req: Request) {
+  const admin = await adminDesdeReq(req);
+  if (!admin) return json(req, { error: 'no_autorizado' }, 401);
+  const b = await req.json().catch(() => ({}));
+  const { data: r } = await db.from('reservas').select('*').eq('codigo', clip(b.codigo, 20)).maybeSingle();
+  if (!r) return json(req, { error: 'no_encontrada' }, 404);
+  if (r.estado !== 'pagado') return json(req, { error: 'reserva_no_confirmada' }, 400);
+  const monto = saldoDe(r);
+  if (r.saldo_pagado_en || monto <= 0) return json(req, { error: 'sin_saldo' }, 400);
+  const link = await linkSaldo(r, monto);
+  let enviado = false;
+  if (b.enviar_correo) {
+    if (!r.cliente_email) return json(req, { error: 'sin_correo', link, monto }, 400);
+    await enviarCorreo(resendKey(), `saldo-${r.codigo}-${Date.now()}`, {
+      from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoSaldo(r, monto, link, esPrueba()),
+    });
+    const historial = [...(r.historial || []), { t: new Date().toISOString(), por: admin, txt: `Cobro del saldo ${monto} enviado por correo a ${r.cliente_email}` }];
+    await db.from('reservas').update({ historial }).eq('id', r.id);
+    enviado = true;
+  }
+  return json(req, { link, monto, enviado });
+}
+
 async function firmaValida(req: Request, url: URL) {
   const secret = Deno.env.get('MP_WEBHOOK_SECRET');
   if (!secret) return true; // sin secreto configurado: igual se consulta el pago a la API de MP
@@ -480,13 +574,13 @@ async function webhook(req: Request, url: URL) {
 async function estado(req: Request, url: URL) {
   const ref = clip(url.searchParams.get('codigo'), 22).toUpperCase();
   const paymentId = clip(url.searchParams.get('payment_id'), 30);
-  if (!/^PH-[A-Z0-9]{8}(-G)?$/.test(ref)) return json(req, { error: 'codigo_invalido' }, 400);
-  const esGarantia = ref.endsWith('-G');
-  const codigo = esGarantia ? ref.slice(0, -2) : ref;
+  if (!/^PH-[A-Z0-9]{8}(-[GS])?$/.test(ref)) return json(req, { error: 'codigo_invalido' }, 400);
+  const esGarantia = ref.endsWith('-G'), esSaldo = ref.endsWith('-S');
+  const codigo = esGarantia || esSaldo ? ref.slice(0, -2) : ref;
   let { data: res } = await db.from('reservas').select('*').eq('codigo', codigo).maybeSingle();
   if (!res) return json(req, { error: 'no_encontrada' }, 404);
   // Si vuelve del checkout antes que el webhook, conciliamos consultando el pago directo a MP
-  const pendiente = esGarantia ? res.garantia_estado === 'pendiente' : res.estado !== 'pagado';
+  const pendiente = esGarantia ? res.garantia_estado === 'pendiente' : esSaldo ? !res.saldo_pagado_en : res.estado !== 'pagado';
   if (pendiente && /^\d+$/.test(paymentId)) {
     try { res = (await aplicarPago(paymentId)) || res; } catch (e) { console.error(e); }
   }
@@ -494,6 +588,7 @@ async function estado(req: Request, url: URL) {
     codigo: res.codigo, estado: res.estado, mp_status: res.mp_status, total: res.total, abono: res.abono,
     monto_pagado: res.monto_pagado, fechas: res.fechas, comuna: res.comuna, flete: res.flete,
     garantia_estado: res.garantia_estado, garantia_monto: res.garantia_monto,
+    saldo_pagado: !!res.saldo_pagado_en, saldo: saldoDe(res), saldo_link_monto: res.saldo_link_monto,
     items: (res.items as Array<{ nombre: string; qty: number; fecha: string }>).map((i) => ({ nombre: i.nombre, qty: i.qty, fecha: i.fecha })),
   });
 }
@@ -525,11 +620,7 @@ async function contacto(req: Request) {
 
 // Panel: enviar (o reenviar) la confirmación por correo de una reserva. Requiere sesión de administrador.
 async function confirmar(req: Request) {
-  const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  const { data: u } = await db.auth.getUser(token);
-  if (!u?.user) return json(req, { error: 'no_autorizado' }, 401);
-  const { data: adm } = await db.from('admins').select('user_id').eq('user_id', u.user.id).is('disabled_at', null).maybeSingle();
-  if (!adm) return json(req, { error: 'no_autorizado' }, 401);
+  if (!(await adminDesdeReq(req))) return json(req, { error: 'no_autorizado' }, 401);
   const b = await req.json().catch(() => ({}));
   const { data: r } = await db.from('reservas').select('*').eq('codigo', clip(b.codigo, 20)).maybeSingle();
   if (!r) return json(req, { error: 'no_encontrada' }, 404);
@@ -559,6 +650,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
     if (req.method === 'GET' && ruta === 'datos.js') return await datosJs(req);
     if (req.method === 'POST' && ruta === 'confirmar') return await confirmar(req);
+    if (req.method === 'POST' && ruta === 'saldo') return await saldo(req);
     if (req.method === 'GET' && ruta === 'modo') {
       const t = Deno.env.get('MP_ACCESS_TOKEN') || '';
       return json(req, { modo: !t ? 'desactivado' : t.startsWith('TEST-') ? 'prueba' : 'produccion' });
