@@ -5,6 +5,7 @@
 //   POST /webhook         → notificación de Mercado Pago; consulta el pago a la API y actualiza la reserva
 //   GET  /estado?codigo=  → estado de una reserva (sin datos personales) para la página pago.html
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
+//   POST /contacto        → formulario de contacto del sitio: envía el mensaje por correo al dueño
 //   GET  /modo            → 'produccion' | 'prueba' | 'desactivado' (el checkout muestra el botón solo en producción)
 //
 // Secretos (Supabase → Edge Functions → Secrets):
@@ -15,7 +16,7 @@
 //   EMAIL_FROM         (opcional)    remitente; por defecto "Party House <reservas@partyhouse.cl>"
 // Correos: aviso al dueño + confirmación al cliente (plantillas en correos.ts)
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { correoCliente, correoDueno, CONTACTO, enviarCorreo, REMITENTE } from './correos.ts';
+import { correoCliente, correoContacto, correoDueno, enviarCorreo, REMITENTE } from './correos.ts';
 
 const SITE = (Deno.env.get('SITE_URL') || 'https://partyhouse.cl').replace(/\/$/, '');
 const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ||
@@ -199,20 +200,24 @@ const resendKey = () => {
 };
 const esPrueba = () => String(Deno.env.get('MP_ACCESS_TOKEN') || '').startsWith('TEST-');
 
-// deno-lint-ignore no-explicit-any
-async function avisarPago(r: any) {
-  const key = resendKey();
+// Correo del dueño: tabla config (clave email_avisos). Recibe avisos, mensajes y las respuestas de los clientes.
+async function emailDueno() {
   const { data: cfg } = await db.from('config').select('valor').eq('clave', 'email_avisos').maybeSingle();
   if (!cfg?.valor) throw new Error('config.email_avisos vacío');
-  await enviarCorreo(key, 'aviso-' + r.codigo, {
-    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [cfg.valor], reply_to: r.cliente_email, ...correoDueno(r, esPrueba()),
+  return cfg.valor as string;
+}
+
+// deno-lint-ignore no-explicit-any
+async function avisarPago(r: any) {
+  await enviarCorreo(resendKey(), 'aviso-' + r.codigo, {
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [await emailDueno()], reply_to: r.cliente_email, ...correoDueno(r, esPrueba()),
   });
 }
 
 // deno-lint-ignore no-explicit-any
 async function confirmarCliente(r: any) {
   await enviarCorreo(resendKey(), 'cliente-' + r.codigo, {
-    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: CONTACTO, ...correoCliente(r, esPrueba()),
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [r.cliente_email], reply_to: await emailDueno(), ...correoCliente(r, esPrueba()),
   });
 }
 
@@ -335,6 +340,31 @@ async function estado(req: Request, url: URL) {
   });
 }
 
+// Formulario de contacto. Límite simple por IP (por instancia) + campo trampa para bots.
+const envios = new Map<string, number[]>();
+async function contacto(req: Request) {
+  const b = await req.json().catch(() => null);
+  if (!b) return json(req, { error: 'datos_invalidos' }, 400);
+  if (clip(b.website, 200)) return json(req, { ok: true }); // trampa: solo los bots llenan este campo
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'sin-ip';
+  const ahora = Date.now();
+  const previos = (envios.get(ip) || []).filter((t) => ahora - t < 10 * 60_000);
+  if (previos.length >= 5) return json(req, { error: 'demasiados_envios' }, 429);
+  const m = {
+    nombre: clip(b.name, 80), email: clip(b.email, 120), telefono: clip(b.phone, 30),
+    fecha: isISODate(b.date) ? b.date : '', tipo: clip(b.type, 60), mensaje: clip(b.message, 3000),
+  };
+  if (m.nombre.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email) || m.mensaje.length < 10 ||
+      (m.telefono && !/^[\d\s+()-]{7,}$/.test(m.telefono))) {
+    return json(req, { error: 'datos_invalidos' }, 400);
+  }
+  envios.set(ip, [...previos, ahora]);
+  await enviarCorreo(resendKey(), 'contacto-' + crypto.randomUUID(), {
+    from: Deno.env.get('EMAIL_FROM') || REMITENTE, to: [await emailDueno()], reply_to: m.email, ...correoContacto(m),
+  });
+  return json(req, { ok: true });
+}
+
 async function disponibilidad(req: Request) {
   const { dispo } = await cargarSitio();
   return json(req, { ocupado: await fechasPagadas(dispo) });
@@ -347,6 +377,7 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'POST' && ruta === 'crear') return await crear(req);
     if (req.method === 'POST' && ruta === 'webhook') return await webhook(req, url);
+    if (req.method === 'POST' && ruta === 'contacto') return await contacto(req);
     if (req.method === 'GET' && ruta === 'estado') return await estado(req, url);
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
     if (req.method === 'GET' && ruta === 'modo') {

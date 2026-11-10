@@ -1,10 +1,10 @@
 // Party House — correos de reserva (Resend)
 //   correoDueno:   aviso interno de abono pagado (al correo de config.email_avisos)
 //   correoCliente: confirmación para el cliente, con la fecha adjunta en formato calendario (.ics)
+//   correoContacto: mensaje del formulario de contacto del sitio (al dueño)
 
 // deno-lint-ignore-file no-explicit-any
 export const REMITENTE = 'Party House <reservas@partyhouse.cl>';
-export const CONTACTO = 'contacto@partyhouse.cl';
 const WHATSAPP = '56956981681';
 const SITE = 'https://partyhouse.cl';
 
@@ -134,6 +134,23 @@ export function correoCliente(r: any, prueba: boolean) {
     html,
     attachments: [{ filename: 'mi-fiesta-party-house.ics', content: ics(r), content_type: 'text/calendar' }],
   };
+}
+
+// ---------- formulario de contacto ----------
+export function correoContacto(m: { nombre: string; email: string; telefono: string; fecha: string; tipo: string; mensaje: string }) {
+  const tel = m.telefono.replace(/[^\d]/g, '');
+  const wa = tel ? 'https://wa.me/' + (tel.startsWith('56') ? tel : '56' + tel.replace(/^0+/, '')) : '';
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#111">
+  <h2 style="margin:0 0 4px">📩 Mensaje desde partyhouse.cl</h2>
+  <p style="margin:0 0 16px;color:#444">${esc(m.tipo || 'Sin tipo')}${m.fecha ? ' · evento ' + esc(mayus(fechaLarga(m.fecha))) : ''}</p>
+  <div style="background:#f6f6f6;border-radius:8px;padding:14px 16px;font-size:15px;line-height:1.55;white-space:pre-wrap">${esc(m.mensaje)}</div>
+  <p style="font-size:15px;line-height:1.7;margin-top:16px">
+    <b>${esc(m.nombre)}</b><br>
+    ✉️ ${esc(m.email)} <span style="color:#888">(responde este correo para contestarle)</span><br>
+    ${m.telefono ? `📞 ${wa ? `<a href="${wa}">${esc(m.telefono)}</a> (WhatsApp)` : esc(m.telefono)}` : ''}
+  </p>
+</div>`;
+  return { subject: `📩 Mensaje web: ${m.nombre}${m.tipo ? ' · ' + m.tipo : ''}`, html };
 }
 
 export async function enviarCorreo(key: string, idempotencia: string, payload: Record<string, unknown>) {

@@ -62,7 +62,7 @@
         <h5>Contacto</h5>
         <ul>
           <li><span class="contact-line"><span class="lbl">Tel</span> +56 9 5698 1681</span></li>
-          <li><span class="contact-line"><span class="lbl">Mail</span> contacto@partyhouse.cl</span></li>
+          <li><a class="contact-line" href="contacto.html#contact-form"><span class="lbl">Mail</span> Formulario de contacto</a></li>
           <li><span class="contact-line"><span class="lbl">Ubic.</span> Las Condes, Santiago, Chile</span></li>
         </ul>
       </div>

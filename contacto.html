@@ -100,6 +100,10 @@
             <textarea name="message" required minlength="10" placeholder="Cuántas personas, qué productos te interesan, dirección o comuna…"></textarea>
             <span class="err-msg">Cuéntanos un poco más (mínimo 10 caracteres)</span>
           </div>
+          <!-- Campo trampa para bots: invisible para personas -->
+          <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+            <label>No completar <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+          </div>
           <button type="submit" class="btn btn-primary btn-block">Enviar mensaje →</button>
         </form>
 
@@ -120,12 +124,12 @@
               <div class="sub">Respondemos todos los días</div>
             </div>
           </a>
-          <a class="ci" href="mailto:contacto@partyhouse.cl">
+          <a class="ci" href="#contact-form">
             <div class="ico">✉</div>
             <div>
               <div class="lbl">Email</div>
-              <div class="val">contacto@partyhouse.cl</div>
-              <div class="sub">Respuesta en menos de 24h</div>
+              <div class="val">Usa el formulario</div>
+              <div class="sub">Te respondemos por correo en menos de 24h</div>
             </div>
           </a>
           <div class="ci">
@@ -186,15 +190,33 @@
     return valid;
   }
 
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     if(!validate()){
       PH.toast('Revisa los campos marcados', 'error');
       return;
     }
-    form.style.display = 'none';
-    ok.classList.add('show');
-    PH.toast('✓ Mensaje enviado', 'success');
+    const btn = form.querySelector('button[type=submit]');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    const data = Object.fromEntries(new FormData(form).entries());
+    try {
+      const r = await fetch(PH.PAGOS_URL + '/contacto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+      });
+      if(!r.ok) throw await r.json().catch(() => ({}));
+      form.style.display = 'none';
+      ok.classList.add('show');
+      PH.toast('✓ Mensaje enviado', 'success');
+      PH.track('contacto_enviado', { tipo: data.type });
+    } catch(err){
+      btn.disabled = false;
+      btn.textContent = label;
+      PH.toast(err && err.error === 'demasiados_envios'
+        ? 'Ya recibimos tus mensajes. Si es urgente, escríbenos por WhatsApp.'
+        : 'No pudimos enviar el mensaje. Escríbenos por WhatsApp al +56 9 5698 1681.', 'error');
+    }
   });
 </script>
 </body>

@@ -80,7 +80,8 @@ El checkout ofrece **"Pagar abono con Mercado Pago"** (Checkout Pro) además de 
   `supabase/functions/pagos/correos.ts`), una sola vez por reserva pagada:
   - **Aviso al dueño**: al correo guardado en la tabla `config` (clave `email_avisos`), con los datos del cliente.
   - **Confirmación al cliente**: código, detalle, saldo, próximos pasos y la fecha adjunta (.ics).
-    Las respuestas del cliente llegan a `contacto@partyhouse.cl`.
+    Las respuestas del cliente llegan al correo de `config.email_avisos`.
+  - **Formulario de contacto** (`contacto.html`): cada mensaje llega por correo al mismo destino, listo para responder.
 
 ## Analítica (opcional)
 
