@@ -202,7 +202,7 @@
 
   // ============ WHATSAPP HELPERS ============
   PH.waLink = function(message){
-    const phone = '56937363825';
+    const phone = '56956981681';
     return 'https://wa.me/' + phone + (message ? '?text=' + encodeURIComponent(message) : '');
   };
 
