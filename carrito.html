@@ -11,7 +11,7 @@
 <style>
   .cart-page{padding:48px 0 96px}
   .cart-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:start}
-  @media (max-width:1024px){.cart-grid{grid-template-columns:1fr}}
+  @media (max-width:1024px){.cart-grid{grid-template-columns:minmax(0,1fr)}}
 
   .cart-items{display:flex;flex-direction:column;gap:16px}
   .cart-item{display:grid;grid-template-columns:120px 1fr auto;gap:20px;padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--card);align-items:center}
@@ -29,7 +29,10 @@
   .ci-date .ci-date-input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer}
   .ci-actions{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
   @media (max-width:640px){
-    .cart-item{grid-template-columns:80px 1fr;grid-template-areas: "img info" "img actions";}
+    .cart-item{grid-template-columns:80px minmax(0,1fr);grid-template-areas: "img info" "img actions";}
+    .cart-item > *{min-width:0}
+    .ci-info .ci-name{font-size:18px;overflow-wrap:anywhere}
+    .ci-date{max-width:100%;white-space:normal}
     .ci-img{grid-area:img}
     .ci-info{grid-area:info}
     .ci-actions{grid-area:actions;align-items:flex-start;flex-direction:row;justify-content:space-between;width:100%;border-top:1px dashed var(--line);padding-top:12px;margin-top:4px}
@@ -60,6 +63,24 @@
   .empty-cart{padding:96px 24px;text-align:center;border:1px dashed var(--line);border-radius:24px}
   .empty-cart h2{font-family:"Archivo Black";font-size:48px;letter-spacing:-0.02em;margin:0 0 12px;line-height:1}
   .empty-cart p{color:var(--ink-dim);margin:0 0 28px}
+
+  .ci-warn{margin-top:8px;font-family:"JetBrains Mono";font-size:11px;color:var(--danger);letter-spacing:0.04em}
+
+  /* Completa tu fiesta (venta cruzada) */
+  .upsell{margin-top:48px;padding-top:32px;border-top:1px solid var(--line)}
+  .upsell-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  .upsell-head .tag{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase}
+  .upsell-head h2{font-family:"Archivo Black";font-size:clamp(28px,3.4vw,44px);letter-spacing:-0.02em;line-height:0.95;margin:6px 0 0}
+  .upsell-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+  @media (max-width:1024px){.upsell-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:480px){.upsell-grid{grid-template-columns:1fr}}
+  .up-card{border:1px solid var(--line);border-radius:18px;background:var(--card);overflow:hidden;display:flex;flex-direction:column}
+  .up-card .up-img{aspect-ratio:4/3;display:block;overflow:hidden;position:relative;background:var(--bg-2)}
+  .up-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .up-name{font-weight:700;line-height:1.2}
+  .up-meta{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.08em;text-transform:uppercase}
+  .up-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px;gap:8px}
+  .up-price{font-family:"Archivo Black";color:var(--acid);font-size:18px}
 </style>
 </head>
 <body>
@@ -85,6 +106,7 @@
 <div id="wa-slot"></div>
 
 <script src="assets/data.js"></script>
+<script src="assets/disponibilidad.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -108,13 +130,41 @@
     PH.saveCart(cart);
   }
 
+  function upsellHtml(cart){
+    const recs = PH.suggestFor(cart.map(c => c.id), 4);
+    if(!recs.length) return '';
+    return `
+      <div class="upsell">
+        <div class="upsell-head">
+          <div>
+            <div class="tag">[ Completa tu fiesta ]</div>
+            <h2>Lo que más <span class="ital acid">se suma.</span></h2>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="arma-tu-fiesta.html">¿No sabes qué elegir? Arma tu fiesta →</a>
+        </div>
+        <div class="upsell-grid">
+          ${recs.map(r => `
+            <article class="up-card">
+              <a class="up-img" href="producto.html?id=${r.id}">${PH.photo(r,{label:r.name})}</a>
+              <div class="up-body">
+                <div class="up-name">${r.name}</div>
+                <div class="up-meta">${r.categoryName} · ${r.size}</div>
+                <div class="up-foot">
+                  <span class="up-price">${PH.formatCLP(r.price)}</span>
+                  <button class="btn btn-primary btn-sm" data-upsell="${r.id}">+ Agregar</button>
+                </div>
+              </div>
+            </article>`).join('')}
+        </div>
+      </div>`;
+  }
+
   function render(){
     const cart = PH.getCart();
     const root = document.getElementById('cart-root');
 
-    const _today = new Date(); _today.setHours(0,0,0,0);
-    const _min = new Date(_today); _min.setDate(_min.getDate()+3);
-    const _max = new Date(_today); _max.setMonth(_max.getMonth()+4);
+    const _win = PH.bookingWindow();
+    const _min = _win.min, _max = _win.max;
     const minStr = ymd(_min), maxStr = ymd(_max);
 
     if(cart.length === 0){
@@ -145,6 +195,7 @@
               <span class="ci-date-caret">▾</span>
               <input type="date" class="ci-date-input" value="${item.date || ''}" min="${minStr}" max="${maxStr}" />
             </div>
+            ${item.date && !PH.isAvailable(p.id, item.date) ? `<div class="ci-warn">⚠ ${PH.unavailableReason(p.id, item.date)}. Elige otra fecha.</div>` : ''}
           </div>
           <div class="ci-actions">
             <div class="ci-price">${PH.formatCLP(lineTotal)}</div>
@@ -186,7 +237,20 @@
           <a class="btn btn-ghost" href="catalogo.html">Seguir armando →</a>
           <div class="summary-note">El saldo restante se cancela el día del evento.</div>
         </aside>
-      </div>`;
+      </div>
+      ${upsellHtml(cart)}`;
+
+    root.querySelectorAll('[data-upsell]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.dataset.upsell;
+        // Hereda la fecha del evento ya elegida en el carrito, si está libre para este producto.
+        const dated = PH.getCart().find(c => c.date);
+        const d = dated && PH.isAvailable(pid, dated.date) ? dated.date : null;
+        PH.addToCart(pid, { date: d });
+        PH.track('agregar_sugerido', { producto: pid });
+        render();
+      });
+    });
 
     root.querySelectorAll('.cart-item').forEach(el => {
       const id = el.dataset.id;
@@ -198,6 +262,8 @@
         // En Chrome/Safari el indicador estirado abre el calendario; esto cubre Firefox.
         dateInput.addEventListener('click', openPicker);
         dateInput.addEventListener('change', () => {
+          const why = PH.unavailableReason(id, dateInput.value);
+          if(why){ PH.toast(why, 'error'); dateInput.value = date || ''; return; }
           setItemDate(id, date, dateInput.value || null);
           if(dateInput.value) PH.toast('✓ Fecha agregada', 'success');
         });

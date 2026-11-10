@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Arma tu fiesta — Party House</title>
+<meta name="description" content="Dinos qué celebras y cuántos invitados vienen: te armamos la fiesta ideal con carpa, mobiliario LED, audio y juegos, con precio al tiro." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .planner{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;padding:56px 0 96px;align-items:start}
+  @media (max-width:1024px){.planner{grid-template-columns:1fr}}
+
+  .pl-step{border:1px solid var(--line);border-radius:20px;background:var(--card);padding:24px;margin-bottom:16px}
+  .pl-step h3{display:flex;align-items:center;gap:12px;font-family:"Archivo Black";font-size:20px;letter-spacing:-0.01em;margin:0 0 16px}
+  .pl-step h3 .n{width:28px;height:28px;border-radius:50%;background:var(--acid);color:#000;display:grid;place-items:center;font-size:13px;flex-shrink:0}
+  .pl-hint{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.05em;margin:-8px 0 14px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{border:1px solid var(--line);background:var(--bg-2);color:var(--ink);border-radius:999px;padding:11px 16px;font:500 14px "Archivo",sans-serif;cursor:pointer;transition:all .15s}
+  .chip:hover{border-color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--acid);color:#000;border-color:var(--acid);font-weight:700}
+
+  .levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  @media (max-width:560px){.levels{grid-template-columns:1fr}}
+  .level{border:1px solid var(--line);background:var(--bg-2);color:var(--ink);border-radius:16px;padding:14px;text-align:left;cursor:pointer;font-family:"Archivo",sans-serif;transition:all .15s}
+  .level:hover{border-color:var(--ink)}
+  .level strong{display:block;font-family:"Archivo Black";font-size:17px;margin-bottom:4px}
+  .level span{font-size:12px;color:var(--ink-dim);line-height:1.4}
+  .level[aria-pressed="true"]{border-color:var(--magenta);background:rgba(255,61,166,0.12)}
+  .level[aria-pressed="true"] strong{color:var(--magenta)}
+
+  .guests{display:flex;align-items:center;gap:18px}
+  .guests input[type=range]{flex:1;accent-color:var(--acid);height:28px}
+  .guests output{font-family:"Archivo Black";font-size:36px;color:var(--acid);min-width:3ch;text-align:right;line-height:1}
+  .guests-lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase}
+
+  .pl-date{width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--ink);font:500 15px "Archivo",sans-serif;color-scheme:dark}
+  .pl-date:focus{outline:2px solid var(--acid);outline-offset:1px}
+
+  .result{position:sticky;top:110px;border:1px solid var(--acid);border-radius:24px;background:var(--card);padding:26px}
+  .result .tag{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.2em;text-transform:uppercase}
+  .result h2{font-family:"Archivo Black";font-size:clamp(28px,3vw,38px);letter-spacing:-0.02em;line-height:0.95;margin:6px 0 18px}
+  .rec-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .rec{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--bg-2);cursor:pointer;transition:opacity .15s,border-color .15s}
+  .rec:hover{border-color:var(--ink-dim)}
+  .rec input{width:18px;height:18px;accent-color:var(--acid);margin:0;cursor:pointer}
+  .rec.off{opacity:0.45}
+  .rec-name{font-weight:700;line-height:1.2;font-size:14px}
+  .rec-name a:hover{color:var(--acid)}
+  .rec-why{font-size:12px;color:var(--ink-dim);margin-top:3px;line-height:1.35}
+  .rec-price{font-family:"Archivo Black";font-size:15px;color:var(--acid);white-space:nowrap;text-align:right}
+  .rec-qty{display:block;font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);font-weight:400;letter-spacing:0.05em}
+  .rec-note{border:1px dashed var(--magenta);color:var(--ink);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;margin-bottom:14px}
+  .tot-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}
+  .tot-row .lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase}
+  .tot-row .val{font-family:"Archivo Black";font-size:30px;color:var(--acid);letter-spacing:-0.02em}
+  .abono-row{background:var(--magenta);color:#000;padding:12px 14px;border-radius:12px;display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 16px}
+  .abono-row .lbl{font-family:"JetBrains Mono";font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:700}
+  .abono-row .val{font-family:"Archivo Black";font-size:18px}
+  .result .btn{width:100%;justify-content:center}
+  .result .btn+.btn{margin-top:10px}
+  .fine{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.04em;text-align:center;margin-top:12px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">PLAN</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Arma tu fiesta</div>
+    <h1>Arma tu fiesta en <span class="ital acid">30 segundos.</span></h1>
+    <p class="lead">Cuéntanos qué celebras y cuántos vienen. Te proponemos el combo ideal con precio al tiro — lo ajustas a tu gusto y lo reservas o lo cotizas por WhatsApp.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="planner">
+      <div>
+        <div class="pl-step">
+          <h3><span class="n">1</span> ¿Qué celebras?</h3>
+          <div class="chips" id="types" role="group" aria-label="Tipo de celebración"></div>
+        </div>
+
+        <div class="pl-step">
+          <h3><span class="n">2</span> ¿Cuántos invitados?</h3>
+          <div class="guests">
+            <input type="range" id="guests" min="5" max="80" step="5" value="30" aria-label="Número de invitados" />
+            <div><output id="guests-out" for="guests">30</output><div class="guests-lbl">personas</div></div>
+          </div>
+        </div>
+
+        <div class="pl-step">
+          <h3><span class="n">3</span> ¿Qué tan épica?</h3>
+          <div class="levels" id="levels" role="group" aria-label="Nivel de la fiesta"></div>
+        </div>
+
+        <div class="pl-step">
+          <h3><span class="n">4</span> ¿Cuándo? <span style="font-family:'Archivo';font-weight:500;font-size:13px;color:var(--ink-dim)">(opcional)</span></h3>
+          <p class="pl-hint">// Revisamos la disponibilidad de cada producto para ese día</p>
+          <input type="date" id="date" class="pl-date" />
+        </div>
+      </div>
+
+      <aside class="result" aria-live="polite">
+        <div class="tag">[ Tu fiesta ideal ]</div>
+        <h2 id="res-title">—</h2>
+        <div id="res-note"></div>
+        <div class="rec-list" id="rec-list"></div>
+        <div class="tot-row"><span class="lbl">// Total arriendo</span><span class="val" id="tot">$0</span></div>
+        <div class="abono-row"><span class="lbl">Abono para reservar (50%)</span><span class="val" id="abono">$0</span></div>
+        <button class="btn btn-primary" id="add-all" type="button">Agregar todo al carrito →</button>
+        <a class="btn btn-ghost" id="wa-quote" href="#" target="_blank" rel="noopener">Cotizar por WhatsApp →</a>
+        <div class="fine">Instalación incluida · Transporte según comuna · Garantía reembolsable el día del evento</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/disponibilidad.js"></script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:'arma', waMessage:'¡Hola Party House! Estoy armando mi fiesta y tengo dudas 🎉'});
+
+  const TYPES = [
+    { id:'cumple',  label:'🎂 Cumpleaños / after' },
+    { id:'teen',    label:'🧃 Cumple teen o infantil' },
+    { id:'matri',   label:'💍 Matrimonio / aniversario' },
+    { id:'empresa', label:'💼 Evento de empresa' },
+    { id:'cine',    label:'🎬 Noche de cine / pijamada' }
+  ];
+  const LEVELS = [
+    { id:'esencial', label:'Esencial', desc:'Lo justo para prender. Mejor precio.' },
+    { id:'full',     label:'Full',     desc:'Con mobiliario LED y juegos.' },
+    { id:'vip',      label:'VIP',      desc:'Todo incluido, nivel discoteca.' }
+  ];
+
+  const state = { type:'cumple', guests:30, level:'full', date:'', off:new Set() };
+
+  // Reglas de recomendación: devuelve [{id, qty, why}]
+  function recommend(s){
+    const g = s.guests, L = s.level, T = s.type;
+    const out = [];
+    const add = (id, qty, why) => { if(PH.getProduct(id)) out.push({ id, qty: Math.max(1, qty||1), why }); };
+    const c = Math.ceil;
+
+    if(T === 'cine'){
+      add(L === 'vip' ? 'karaoke-night' : 'noche-de-peliculas', 1, L === 'vip' ? 'Pelis y karaoke: telón 80", proyector, parlante y 2 micros' : 'Telón 80" + proyector HD + parlante');
+      add('kit-confort-mantas-cojines', c(g/5), 'Mantas y cojines para ' + g + ' personas');
+      if(L !== 'esencial') add('maquina-de-pop-corn', c(g/10), 'Cabritas recién hechas para todos');
+      if(L !== 'esencial') add('esfera-led', 2, 'Luz ambiente suave para la noche');
+      if(g > 15) add('party-cube-5x5-mts', 1, 'Con más de 15 personas, una carpa arma el espacio perfecto');
+      return out;
+    }
+
+    // Carpa según invitados (y pack VIP si corresponde)
+    if(L === 'vip') add(g <= 30 ? 'pack-vip-lounge-5x5-mts' : 'pack-vip-lounge-5x8-mts', 1, 'Carpa + alfombra + audio + humo + luces UV + mobiliario LED');
+    else add(g <= 30 ? 'party-cube-5x5-mts' : 'party-house-5x8-mts', 1, (g <= 30 ? 'Para 25–30 personas' : 'Para 40–45 personas') + ', con parlante 1.500 W, humo y luces');
+
+    // Mesas y sillas para eventos con gente sentada
+    if(T === 'matri' || T === 'empresa'){
+      const mesas = c(g/8);
+      add('mesa-plegable-180cms', mesas, mesas + ' mesas de 180 cm (8 personas c/u)');
+      add('silla-blanca', g, 'Una silla por invitado');
+      if(L !== 'esencial') add('mantel-rectangular-negro', mesas, 'Mantel negro para cada mesa');
+    }
+
+    // Mobiliario LED
+    if(L === 'full') add(g <= 30 ? 'pack-2-led' : 'pack-3-led', 1, 'Living LED para que nadie quede de pie');
+    if(L === 'vip') add(g <= 30 ? 'hielera-led' : 'pack-1-led', 1, g <= 30 ? 'Hielera LED para mantener todo heladito' : 'Más mobiliario LED para un grupo grande');
+
+    // Extras según la ocasión
+    if(T === 'cumple'){
+      add('letrero-neon-led-happy-birthday', 1, 'La foto obligada del cumpleaños');
+      if(L !== 'esencial') add('pack-beerpong-yenga-xl', 1, 'Beerpong LED + Yenga XL: los juegos que nunca fallan');
+      if(L === 'vip'){ add('maquina-de-sour-frozen-granizado', 1, 'Barra de sour frozen (5 lts incluidos)'); add('cabeza-movil-robotica-par-7-led', 2, 'Luces robóticas nivel discoteca'); }
+    }
+    if(T === 'teen'){
+      add('letrero-neon-led-happy-birthday', 1, 'La foto obligada del cumpleaños');
+      add('maquina-de-burbujas', 1, 'Burbujas para la pista de baile');
+      if(L !== 'esencial'){ add('mesa-de-beerpong-copia', 1, 'Yenga XL gigante, sin alcohol y para todos'); add('maquina-de-pop-corn', c(g/10), 'Cabritas para todos'); }
+      if(L === 'vip') add('2-microfonos-inalambricos', 1, 'Karaoke con el parlante incluido');
+    }
+    if(T === 'matri'){
+      if(L !== 'esencial') add('esfera-led', 4, 'Decoración LED para mesas y jardín');
+      if(L === 'vip') add('maquina-de-sour-frozen-granizado', 1, 'Barra de sour frozen (5 lts incluidos)');
+    }
+    if(T === 'empresa'){
+      add('2-microfonos-inalambricos', 1, 'Para discursos y premiaciones');
+      if(L !== 'esencial') add('tv-32-rack', 1, 'Para presentaciones o videos de la empresa');
+      if(L === 'vip') add('maquina-de-sour-frozen-granizado', 1, 'Barra de sour frozen (5 lts incluidos)');
+    }
+    return out;
+  }
+
+  function selected(recs){ return recs.filter(r => !state.off.has(r.id)); }
+
+  function render(){
+    const recs = recommend(state);
+    const sel = selected(recs);
+    const total = sel.reduce((s,r) => s + PH.getProduct(r.id).price * r.qty, 0);
+    const typeLbl = TYPES.find(t => t.id === state.type).label.replace(/^\S+\s/, '');
+    document.getElementById('res-title').innerHTML = typeLbl + ' · <span class="acid">' + state.guests + ' pers.</span>';
+
+    const notes = [];
+    if(state.type !== 'cine' && state.guests > 45) notes.push('Para más de 45 personas combinamos carpas o armamos algo a medida. Cotízalo por WhatsApp y te ayudamos.');
+    if(state.date){
+      const busy = sel.filter(r => !PH.isAvailable(r.id, state.date));
+      if(busy.length) notes.push('⚠ No disponible ese día: ' + busy.map(r => PH.getProduct(r.id).name).join(', ') + '. ' + PH.unavailableReason(busy[0].id, state.date) + '.');
+    }
+    document.getElementById('res-note').innerHTML = notes.map(n => '<div class="rec-note">' + n + '</div>').join('');
+
+    document.getElementById('rec-list').innerHTML = recs.map(r => {
+      const p = PH.getProduct(r.id);
+      const on = !state.off.has(r.id);
+      return `<label class="rec ${on?'':'off'}">
+        <input type="checkbox" data-id="${r.id}" ${on?'checked':''} />
+        <div><div class="rec-name"><a href="producto.html?id=${p.id}" target="_blank" rel="noopener">${p.name}</a></div><div class="rec-why">${r.why}</div></div>
+        <div class="rec-price">${PH.formatCLP(p.price * r.qty)}<span class="rec-qty">${r.qty > 1 ? r.qty + ' × ' + PH.formatCLP(p.price) : p.size}</span></div>
+      </label>`;
+    }).join('');
+    document.querySelectorAll('#rec-list input').forEach(cb => cb.addEventListener('change', () => {
+      cb.checked ? state.off.delete(cb.dataset.id) : state.off.add(cb.dataset.id);
+      render();
+    }));
+
+    document.getElementById('tot').textContent = PH.formatCLP(total);
+    document.getElementById('abono').textContent = PH.formatCLP(Math.round(total/2));
+    document.getElementById('add-all').disabled = sel.length === 0;
+
+    const fecha = state.date ? new Date(state.date+'T00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'}) : 'por definir';
+    const msg = '¡Hola Party House! 🎉 Armé mi fiesta en la web:\n\n' +
+      'Celebración: ' + typeLbl + '\nInvitados: ' + state.guests + '\nFecha: ' + fecha + '\n\n' +
+      sel.map(r => '• ' + PH.getProduct(r.id).name + ' x' + r.qty + ' — ' + PH.formatCLP(PH.getProduct(r.id).price * r.qty)).join('\n') +
+      '\n\nTotal: ' + PH.formatCLP(total) + '\n¿Me confirman disponibilidad y el valor del transporte?';
+    document.getElementById('wa-quote').href = PH.waLink(msg);
+  }
+
+  // Chips y niveles
+  function pressGroup(container, items, key){
+    container.innerHTML = items.map(i => key === 'level'
+      ? `<button type="button" class="level" data-v="${i.id}" aria-pressed="${state[key]===i.id}"><strong>${i.label}</strong><span>${i.desc}</span></button>`
+      : `<button type="button" class="chip" data-v="${i.id}" aria-pressed="${state[key]===i.id}">${i.label}</button>`).join('');
+    container.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      state[key] = b.dataset.v; state.off.clear();
+      container.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      render();
+    }));
+  }
+  pressGroup(document.getElementById('types'), TYPES, 'type');
+  pressGroup(document.getElementById('levels'), LEVELS, 'level');
+
+  const range = document.getElementById('guests');
+  range.addEventListener('input', () => {
+    state.guests = Number(range.value);
+    document.getElementById('guests-out').textContent = range.value;
+    render();
+  });
+
+  const win = PH.bookingWindow();
+  const dateIn = document.getElementById('date');
+  dateIn.min = PH.toISODate(win.min); dateIn.max = PH.toISODate(win.max);
+  dateIn.addEventListener('change', () => { state.date = dateIn.value; render(); });
+
+  document.getElementById('add-all').addEventListener('click', () => {
+    const sel = selected(recommend(state));
+    if(!sel.length) return;
+    sel.forEach(r => {
+      const d = state.date && PH.isAvailable(r.id, state.date) ? state.date : null;
+      PH.addToCart(r.id, { qty: r.qty, date: d, silent: true });
+    });
+    PH.track('planificador_agregar', { tipo: state.type, invitados: state.guests, nivel: state.level });
+    PH.toast('✓ ' + sel.length + ' productos agregados', 'success');
+    PH.celebrate();
+    setTimeout(() => { location.href = 'carrito.html'; }, 1100);
+  });
+  document.getElementById('wa-quote').addEventListener('click', () => {
+    PH.track('planificador_whatsapp', { tipo: state.type, invitados: state.guests, nivel: state.level });
+  });
+
+  render();
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="assets/site.css" />
 <style>
   .pd{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;padding:48px 0 96px}
-  @media (max-width:1024px){.pd{grid-template-columns:1fr;gap:32px}}
+  @media (max-width:1024px){.pd{grid-template-columns:minmax(0,1fr);gap:32px}}
 
   .pd-gallery{display:flex;flex-direction:column;gap:12px}
   .pd-main{aspect-ratio:5/4;border-radius:24px;overflow:hidden;border:1px solid var(--line);position:relative}
@@ -24,7 +24,7 @@
   .pd-size{font-family:"JetBrains Mono";font-size:12px;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase;display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px}
   .pd-size span{display:inline-flex;align-items:center;gap:8px}
   .pd-size span::before{content:"";width:6px;height:6px;background:var(--acid);border-radius:50%}
-  .pd-price{display:flex;align-items:baseline;gap:14px;margin:18px 0}
+  .pd-price{display:flex;align-items:baseline;gap:8px 14px;margin:18px 0;flex-wrap:wrap}
   .pd-price .now{font-family:"Archivo Black";font-size:48px;color:var(--acid);line-height:1;letter-spacing:-0.02em}
   .pd-price .was{font-family:"JetBrains Mono";font-size:15px;color:var(--ink-dim);text-decoration:line-through}
   .pd-price .save{background:var(--magenta);color:#000;font-family:"JetBrains Mono";font-size:10px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:0.08em;text-transform:uppercase}
@@ -99,6 +99,7 @@
 <div id="wa-slot"></div>
 
 <script src="assets/data.js"></script>
+<script src="assets/disponibilidad.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -208,6 +209,39 @@
       });
     });
 
+    // Foto principal → galería a pantalla completa con zoom y swipe (PhotoSwipe)
+    if(imgs.length){
+      const main = document.getElementById('pd-main');
+      main.style.cursor = 'zoom-in';
+      main.title = 'Ver fotos en grande';
+      main.addEventListener('click', () => {
+        const active = root.querySelector('.pd-thumb.active');
+        PH.openGallery(imgs, active ? imgs.indexOf(active.dataset.src) : 0);
+      });
+    }
+
+    // Datos estructurados para Google (precio y disponibilidad en resultados de búsqueda)
+    const ld = document.createElement('script');
+    ld.type = 'application/ld+json';
+    ld.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: p.name + (p.size ? ' (' + p.size + ')' : ''),
+      description: p.short || p.long,
+      image: imgs,
+      category: p.categoryName,
+      brand: { '@type': 'Brand', name: 'Party House' },
+      offers: {
+        '@type': 'Offer',
+        price: p.price,
+        priceCurrency: 'CLP',
+        availability: 'https://schema.org/InStock',
+        url: 'https://partyhouse.cl/producto.html?id=' + p.id,
+        areaServed: 'Región Metropolitana, Chile'
+      }
+    });
+    document.head.appendChild(ld);
+
     // Related: prefer same category, fill with others
     const sameCat = PH_PRODUCTS.filter(x => x.id !== p.id && x.category === p.category).sort(()=>Math.random()-0.5);
     const otherCat = PH_PRODUCTS.filter(x => x.id !== p.id && x.category !== p.category).sort(()=>Math.random()-0.5);
@@ -226,20 +260,16 @@
       </article>`).join('');
 
     // ============ Calendar ============
-    const today = new Date(); today.setHours(0,0,0,0);
+    const win = PH.bookingWindow();
+    const today = win.today, MAX = win.max;
     let view = new Date(today.getFullYear(), today.getMonth(), 1);
     let selected = null;
-    const MIN = new Date(today); MIN.setDate(MIN.getDate()+3); // need 3 days advance
-    const MAX = new Date(today); MAX.setMonth(MAX.getMonth()+4); // up to 4 months
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     const DOW = ['L','M','M','J','V','S','D'];
 
-    // mock "unavailable" dates — every 2 weeks, weekends nearby fully booked
+    // Disponibilidad real: assets/disponibilidad.js
     function isUnavailable(d){
-      if(d < MIN) return true;
-      if(d > MAX) return true;
-      // mock pattern: every 5th day
-      return (d.getDate() + d.getMonth()*3) % 17 === 0;
+      return !PH.isAvailable(p.id, PH.toISODate(d));
     }
 
     function renderCal(){
@@ -310,7 +340,7 @@
         PH.toast('Elige una fecha primero', 'error');
         return;
       }
-      PH.addToCart(p.id, { date: selected.toISOString().slice(0,10) });
+      PH.addToCart(p.id, { date: PH.toISODate(selected) });
     });
 
     renderCal();

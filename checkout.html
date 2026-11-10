@@ -93,6 +93,7 @@
     <h2>¡Casi listo!</h2>
     <p>Tu pedido está armado. Toca el botón para abrir WhatsApp con todo escrito y enviarnos tu reserva.</p>
     <a class="btn btn-wa" id="wa-go" href="#" target="_blank" rel="noopener">Abrir WhatsApp →</a>
+    <button class="btn btn-ghost" id="ics-go" type="button" style="display:none">📅 Guardar la fecha en mi calendario</button>
     <button class="wa-close" id="wa-close" type="button">Volver a editar mis datos</button>
   </div>
 </div>
@@ -101,6 +102,7 @@
 <div id="wa-slot"></div>
 
 <script src="assets/data.js"></script>
+<script src="assets/disponibilidad.js"></script>
 <script src="assets/partials.js"></script>
 <script src="assets/site.js"></script>
 <script>
@@ -226,6 +228,12 @@
     document.getElementById('co-form').addEventListener('submit', e => {
       e.preventDefault();
       if(!validate()){ PH.toast('Revisa los campos marcados','error'); return; }
+      const blocked = PH.getCart().find(c => c.date && !PH.isAvailable(c.id, c.date));
+      if(blocked){
+        const bp = PH.getProduct(blocked.id);
+        PH.toast((bp ? bp.name + ': ' : '') + PH.unavailableReason(blocked.id, blocked.date) + '. Cambia la fecha en el carrito.', 'error');
+        return;
+      }
 
       const form = e.target;
       const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
@@ -264,6 +272,23 @@ Comuna del evento: ${comuna}${notes ? `\nComentarios: ${notes}` : ''}`;
       const go = document.getElementById('wa-go');
       go.href = link;
       document.getElementById('wa-modal').classList.add('show');
+      PH.celebrate();
+      PH.track('reserva_lista', { total: sub, productos: curCart.length, comuna: comuna });
+
+      // Guardar en calendario: un evento por cada fecha distinta del pedido
+      const byDate = {};
+      curCart.forEach(item => {
+        const p = PH.getProduct(item.id);
+        if(item.date && p) (byDate[item.date] = byDate[item.date] || []).push(p.name + ' x' + item.qty);
+      });
+      const icsBtn = document.getElementById('ics-go');
+      const dates = Object.keys(byDate);
+      icsBtn.style.display = dates.length ? '' : 'none';
+      icsBtn.onclick = () => PH.downloadICS(dates.map(d => ({
+        date: d,
+        title: '🎉 Mi fiesta con Party House',
+        description: 'Reserva (por confirmar):\n' + byDate[d].join('\n') + '\n\nComuna: ' + comuna + '\nWhatsApp Party House: +56 9 5698 1681'
+      })));
     });
   }
 

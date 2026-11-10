@@ -44,3 +44,22 @@ python3 -m http.server 8000
 ## WhatsApp
 
 El número de contacto está en `assets/site.js` (`PH.waLink`, variable `phone`). Cámbialo ahí si corresponde.
+
+## Disponibilidad de fechas (¡mantener al día!)
+
+El calendario de cada producto, el carrito, el checkout y el planificador leen `assets/disponibilidad.js`.
+Cada vez que confirmes una reserva, agrega la fecha (`'AAAA-MM-DD'`) bajo el id del producto en `ocupado`.
+Para feriados o vacaciones usa `cerrado` (bloquea todo). Se puede editar directo en GitHub con el lápiz.
+`comparten` agrupa productos que usan la misma carpa (ej. Party Cube 5×5 y Pack VIP 5×5).
+
+## Arma tu fiesta (`arma-tu-fiesta.html`)
+
+Planificador: el cliente elige tipo de celebración, invitados, nivel y fecha, y recibe un combo con total y abono
+que puede agregar al carrito o cotizar por WhatsApp. Las reglas están en la función `recommend()` de esa página.
+La sección "Completa tu fiesta" del carrito usa `PH.suggestFor()` en `assets/site.js`.
+
+## Analítica (opcional)
+
+`PH.track()` envía eventos (`agregar_carrito`, `click_whatsapp`, `reserva_lista`, `planificador_agregar`,
+`planificador_whatsapp`, `agregar_sugerido`) a **Umami** o **Plausible** si su script está cargado. Para activarlo,
+crea una cuenta y pega su `<script>` en el `<head>` de las páginas. Sin eso, no hace nada.

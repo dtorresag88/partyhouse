@@ -7,6 +7,7 @@
       ['index.html', 'Home', 'home'],
       ['catalogo.html', 'Catálogo', 'catalogo'],
       ['packs.html', 'Packs', 'packs'],
+      ['arma-tu-fiesta.html', 'Arma tu fiesta ✦', 'arma'],
       ['faq.html', 'Preguntas Frecuentes', 'faq'],
       ['condiciones.html', 'Condiciones', 'condiciones'],
       ['contacto.html', 'Contacto', 'contacto']
@@ -51,6 +52,7 @@
           <li><a href="index.html">Home</a></li>
           <li><a href="catalogo.html">Catálogo</a></li>
           <li><a href="packs.html">Packs</a></li>
+          <li><a href="arma-tu-fiesta.html">Arma tu fiesta</a></li>
           <li><a href="faq.html">Preguntas Frecuentes</a></li>
           <li><a href="condiciones.html">Condiciones</a></li>
           <li><a href="contacto.html">Contacto</a></li>
