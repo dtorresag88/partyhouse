@@ -5,7 +5,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 export const REMITENTE = 'Party House <reservas@partyhouse.cl>';
-const WHATSAPP = '56956981681';
+const WHATSAPP = '56949022463';
 const SITE = 'https://partyhouse.cl';
 
 export const esc = (s: unknown) =>
@@ -72,7 +72,7 @@ function ics(r: any) {
     lines.push('BEGIN:VEVENT', `UID:${r.codigo}-${i}@partyhouse.cl`, `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${f.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${fin}`,
       `SUMMARY:${e('🎉 Mi fiesta con Party House')}`,
-      `DESCRIPTION:${e(`Reserva ${r.codigo} (abono pagado)\n${items}\n\nWhatsApp Party House: +56 9 5698 1681`)}`,
+      `DESCRIPTION:${e(`Reserva ${r.codigo} (abono pagado)\n${items}\n\nWhatsApp Party House: +56 9 4902 2463`)}`,
       'END:VEVENT');
   });
   lines.push('END:VCALENDAR');
@@ -132,7 +132,7 @@ export function correoCliente(r: any, prueba: boolean) {
 
     <p style="font-size:13px;color:#666;line-height:1.6;border-top:1px solid #eee;margin-top:24px;padding-top:16px">
       Revisa nuestras <a href="${SITE}/condiciones.html" style="color:#15111f">condiciones del arriendo</a> (duración, lluvia, cambios de fecha) y las
-      <a href="${SITE}/faq.html" style="color:#15111f">preguntas frecuentes</a>. ¿Dudas? Responde este correo o escríbenos al +56 9 5698 1681.
+      <a href="${SITE}/faq.html" style="color:#15111f">preguntas frecuentes</a>. ¿Dudas? Responde este correo o escríbenos al +56 9 4902 2463.
     </p>
   </div>
   <p style="text-align:center;font-size:11px;color:#999;margin:16px 0 0">Party House · Arriendo de carpas disco, mobiliario LED, audio y juegos · Santiago, Chile<br>Pago procesado por Mercado Pago · Operación #${esc(r.mp_payment_id)}</p>
@@ -175,7 +175,7 @@ export function correoGarantia(r: any, dias: number, link: string, n: number, pr
     </div>
     <p style="font-size:13px;color:#666;margin:0">Debe quedar pagada antes del día del evento. Te enviaremos un recordatorio diario hasta recibirla.
       ¿Prefieres transferir o tienes dudas? Responde este correo o escríbenos por
-      <a href="https://wa.me/${WHATSAPP}" style="color:#15111f">WhatsApp</a> al +56 9 5698 1681.</p>`, prueba);
+      <a href="https://wa.me/${WHATSAPP}" style="color:#15111f">WhatsApp</a> al +56 9 4902 2463.</p>`, prueba);
   return {
     subject: `${prueba ? '[PRUEBA] ' : ''}${n > 1 ? 'Recordatorio: ' : ''}Garantía reembolsable ${clp(r.garantia_monto)} · ${cuando} · ${r.codigo}`,
     html,
@@ -230,7 +230,7 @@ export function correoSaldo(r: any, monto: number, link: string, prueba: boolean
       <a href="${link}" style="display:inline-block;background:#009ee3;color:#fff;text-decoration:none;font-weight:bold;padding:15px 28px;border-radius:999px;font-size:16px">Pagar saldo ${clp(monto)} con Mercado Pago →</a>
     </div>
     <p style="font-size:13px;color:#666;margin:0">¿Prefieres transferir o pagar el día del evento? Responde este correo o escríbenos por
-      <a href="https://wa.me/${WHATSAPP}" style="color:#15111f">WhatsApp</a> al +56 9 5698 1681.</p>`, prueba);
+      <a href="https://wa.me/${WHATSAPP}" style="color:#15111f">WhatsApp</a> al +56 9 4902 2463.</p>`, prueba);
   return { subject: `${prueba ? '[PRUEBA] ' : ''}Saldo pendiente ${clp(monto)} · tu reserva ${r.codigo}`, html };
 }
 

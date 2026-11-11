@@ -162,7 +162,7 @@
       document.getElementById('ics').onclick = () => PH.downloadICS(r.fechas.map(f => ({
         date: f,
         title: '🎉 Mi fiesta con Party House',
-        description: 'Reserva ' + r.codigo + ' (abono pagado)\n' + r.items.filter(i => i.fecha === f).map(i => i.nombre + ' x' + i.qty).join('\n') + '\n\nWhatsApp Party House: +56 9 5698 1681'
+        description: 'Reserva ' + r.codigo + ' (abono pagado)\n' + r.items.filter(i => i.fecha === f).map(i => i.nombre + ' x' + i.qty).join('\n') + '\n\nWhatsApp Party House: +56 9 4902 2463'
       })));
       if(!sessionStorage.getItem('ph_celebrado_' + r.codigo)){
         PH.celebrate({ particleCount: 180, spread: 100 });

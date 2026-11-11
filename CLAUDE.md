@@ -1,6 +1,6 @@
 # Party House · Sitio y panel
 
-Arriendo de carpas disco inflables, mobiliario LED, audio y juegos para fiestas (Santiago, Chile). WhatsApp +56 9 5698 1681 · Instagram @partyhouse_cl.
+Arriendo de carpas disco inflables, mobiliario LED, audio y juegos para fiestas (Santiago, Chile). WhatsApp +56 9 4902 2463 · Instagram @partyhouse_cl.
 
 ## Stack
 - Sitio estático sin build en GitHub Pages (repo público dtorresag88/partyhouse, rama `main`, dominio partyhouse.cl).

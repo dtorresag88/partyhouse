@@ -143,7 +143,7 @@
     if (!w) return A.toast("Permite las ventanas emergentes para imprimir", true);
     const base = location.href.replace(/admin\.html.*$/, "");
     const page = (r) => `<section>
-      <header><img src="${base}assets/logo-dark.png" alt=""><div><h1>Hoja de instalación</h1><p>Party House · WhatsApp +56 9 5698 1681</p></div>
+      <header><img src="${base}assets/logo-dark.png" alt=""><div><h1>Hoja de instalación</h1><p>Party House · WhatsApp +56 9 4902 2463</p></div>
         <div class="num"><b>${esc(r.codigo)}</b><br>${esc(A.eventoLargo(A.fechaEv(r)))}</div></header>
       <div class="two"><div><h3>Cliente</h3><p><b>${esc(r.cliente_nombre)}</b>${r.cliente_rut ? ` · RUT ${esc(r.cliente_rut)}` : ""}<br>${esc(r.cliente_telefono)}<br>${esc(r.cliente_email || "")}</p></div>
         <div><h3>Lugar${r.horario ? ` · ${esc(r.horario)}` : ""}</h3><p><b>${esc(A.lugar(r))}</b>${r.notas ? `<br>${esc(r.notas)}` : ""}</p></div></div>
