@@ -112,6 +112,21 @@
 <script>
   PH_mountChrome({active:'catalogo'});
 
+  // RUT chileno: devuelve "12.345.678-9" si el dígito verificador es válido, o '' si no
+  function PH_rut(v){
+    const s = String(v || '').toUpperCase().replace(/[^0-9K]/g, '');
+    if(s.length < 2 || s.length > 9) return '';
+    const cuerpo = s.slice(0, -1), dv = s.slice(-1);
+    if(!/^\d+$/.test(cuerpo)) return '';
+    let suma = 0, m = 2;
+    for(let i = cuerpo.length - 1; i >= 0; i--){ suma += +cuerpo[i] * m; m = m === 7 ? 2 : m + 1; }
+    const r = 11 - (suma % 11), esperado = r === 11 ? '0' : r === 10 ? 'K' : String(r);
+    return dv === esperado ? cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv : '';
+  }
+  document.addEventListener('focusout', e => {
+    if(e.target.name === 'rut' && PH_rut(e.target.value)) e.target.value = PH_rut(e.target.value);
+  });
+
   // Totales del pedido según la comuna elegida (flete de assets/transporte.js).
   // flete === null → comuna sin tarifa ("Otra") o aún no elegida.
   function totales(comuna){
@@ -197,9 +212,9 @@
                 <span class="err-msg">Email inválido</span>
               </div>
               <div class="form-field">
-                <label>Comuna del evento</label>
-                <select name="comuna" required>${comunaOpts}</select>
-                <span class="err-msg">Selecciona comuna</span>
+                <label>RUT (opcional)</label>
+                <input type="text" name="rut" inputmode="text" autocomplete="off" maxlength="12" placeholder="12.345.678-9" />
+                <span class="err-msg">RUT inválido</span>
               </div>
             </div>
             <div class="form-row">
@@ -209,9 +224,14 @@
                 <span class="err-msg">Ingresa la dirección donde instalamos</span>
               </div>
               <div class="form-field">
-                <label>Horario de instalación (opcional)</label>
-                <input type="text" name="horario" placeholder="Ej: 15:00" />
+                <label>Comuna del evento</label>
+                <select name="comuna" required>${comunaOpts}</select>
+                <span class="err-msg">Selecciona comuna</span>
               </div>
+            </div>
+            <div class="form-field">
+              <label>Horario de instalación (opcional)</label>
+              <input type="text" name="horario" placeholder="Ej: 15:00" />
             </div>
             <div class="form-field">
               <label>Comentarios (opcional)</label>
@@ -300,7 +320,7 @@
 
       const form = e.target;
       const get = n => (form.querySelector('[name="'+n+'"]').value || '').trim();
-      const name = get('name'), phone = get('phone'), email = get('email'), comuna = get('comuna'), notes = get('notes'), direccion = get('direccion'), horario = get('horario');
+      const name = get('name'), phone = get('phone'), email = get('email'), comuna = get('comuna'), notes = get('notes'), direccion = get('direccion'), horario = get('horario'), rut = PH_rut(get('rut'));
 
       const curCart = PH.getCart();
       const lines = curCart.map(item => {
@@ -330,7 +350,7 @@ Saldo el día del evento: ${PH.formatCLP(t.saldo)}
 — Mis datos —
 Nombre: ${name}
 Teléfono: ${phone}
-Email: ${email}
+Email: ${email}${rut ? `\nRUT: ${rut}` : ''}
 Dirección del evento: ${direccion}, ${comuna}${horario ? `\nHorario de instalación: ${horario}` : ''}${notes ? `\nComentarios: ${notes}` : ''}`;
 
       PH.toast('✓ Pedido listo', 'success');
@@ -381,7 +401,7 @@ Dirección del evento: ${direccion}, ${comuna}${horario ? `\nHorario de instalac
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart.map(c => ({ id: c.id, qty: c.qty, date: c.date })),
-          cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), direccion: get('direccion'), horario: get('horario'), notes: get('notes') }
+          cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), direccion: get('direccion'), horario: get('horario'), rut: PH_rut(get('rut')), notes: get('notes') }
         })
       });
       const data = await r.json().catch(() => ({}));
@@ -399,6 +419,7 @@ Dirección del evento: ${direccion}, ${comuna}${horario ? `\nHorario de instalac
         pagos_no_configurados: 'El pago online aún no está activo. Reserva por WhatsApp 🙌',
         datos_cliente_invalidos: 'Revisa tus datos de contacto.',
         falta_direccion: 'Ingresa la dirección del evento.',
+        rut_invalido: 'Revisa el RUT (o déjalo en blanco).',
         varias_fechas: 'Cada pedido es para un solo día. Ajusta las fechas en el carrito.',
         comuna_sin_tarifa: 'Para esa comuna te cotizamos el flete por WhatsApp 🙌'
       };
@@ -419,6 +440,7 @@ Dirección del evento: ${direccion}, ${comuna}${horario ? `\nHorario de instalac
       if(f.name === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ wrap.classList.add('error'); valid=false; }
       if(f.name === 'comuna' && !v){ wrap.classList.add('error'); valid=false; }
       if(f.name === 'direccion' && v.length < 5){ wrap.classList.add('error'); valid=false; }
+      if(f.name === 'rut' && v && !PH_rut(v)){ wrap.classList.add('error'); valid=false; }
     });
     return valid;
   }

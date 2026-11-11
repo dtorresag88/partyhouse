@@ -63,6 +63,16 @@ function addMonths(iso: string, months: number) {
 const isISODate = (s: unknown): s is string =>
   typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
 const clip = (s: unknown, n: number) => String(s ?? '').trim().slice(0, n);
+// RUT chileno: "12.345.678-9" si el dígito verificador es válido, si no ''
+function rutValido(v: string) {
+  const s = v.toUpperCase().replace(/[^0-9K]/g, '');
+  if (s.length < 2 || s.length > 9 || !/^\d+$/.test(s.slice(0, -1))) return '';
+  const cuerpo = s.slice(0, -1);
+  let suma = 0, m = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i--) { suma += +cuerpo[i] * m; m = m === 7 ? 2 : m + 1; }
+  const r = 11 - (suma % 11), dv = r === 11 ? '0' : r === 10 ? 'K' : String(r);
+  return s.slice(-1) === dv ? cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv : '';
+}
 function codigoNuevo() {
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const r = crypto.getRandomValues(new Uint8Array(8));
@@ -486,8 +496,9 @@ async function crear(req: Request) {
 
   const cliente = {
     nombre: clip(c.name, 80), telefono: clip(c.phone, 30), email: clip(c.email, 120),
-    comuna: clip(c.comuna, 60), notas: clip(c.notes, 600), direccion: clip(c.direccion, 200), horario: clip(c.horario, 60),
+    comuna: clip(c.comuna, 60), notas: clip(c.notes, 600), direccion: clip(c.direccion, 200), horario: clip(c.horario, 60), rut: clip(c.rut, 14),
   };
+  if (cliente.rut && !(cliente.rut = rutValido(cliente.rut))) return json(req, { error: 'rut_invalido' }, 400);
   if (cliente.direccion.length < 5) return json(req, { error: 'falta_direccion' }, 400);
   if (cliente.nombre.length < 2 || !/^[\d\s+()-]{7,}$/.test(cliente.telefono) ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email) || !cliente.comuna) {
@@ -523,7 +534,7 @@ async function crear(req: Request) {
   mpToken(); // falla temprano si no está configurado
   const { data: res, error } = await db.from('reservas').insert({
     codigo, items: lineas, fechas, total, abono, flete, garantia_monto: ajustes.garantia_monto,
-    cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email,
+    cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email, cliente_rut: cliente.rut || null,
     comuna: cliente.comuna, direccion: cliente.direccion, horario: cliente.horario || null, notas: cliente.notas || null,
   }).select('id').single();
   if (error) throw error;

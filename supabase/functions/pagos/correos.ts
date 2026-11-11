@@ -48,6 +48,7 @@ export function correoDueno(r: any, prueba: boolean) {
     ${esc(r.cliente_nombre)}<br>
     📞 <a href="${wa}">${esc(r.cliente_telefono)}</a> (WhatsApp)<br>
     ✉️ ${esc(r.cliente_email)}<br>
+    ${r.cliente_rut ? `🪪 RUT ${esc(r.cliente_rut)}<br>` : ''}
     📍 ${esc([r.direccion, r.comuna].filter(Boolean).join(', '))}${r.horario ? ` · ⏰ ${esc(r.horario)}` : ''}
     ${r.notas ? `<br>📝 ${esc(r.notas)}` : ''}
   </p>

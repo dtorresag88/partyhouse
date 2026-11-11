@@ -45,6 +45,15 @@
     return data;
   };
   A.lugar = (r) => [r.direccion, r.comuna].filter(Boolean).join(", ");
+  // RUT chileno: "12.345.678-9" si el dígito verificador es válido, si no ""
+  A.rut = (v) => {
+    const s = String(v || "").toUpperCase().replace(/[^0-9K]/g, "");
+    if (s.length < 2 || s.length > 9 || !/^\d+$/.test(s.slice(0, -1))) return "";
+    const cuerpo = s.slice(0, -1); let suma = 0, m = 2;
+    for (let i = cuerpo.length - 1; i >= 0; i--) { suma += +cuerpo[i] * m; m = m === 7 ? 2 : m + 1; }
+    const r = 11 - (suma % 11), dv = r === 11 ? "0" : r === 10 ? "K" : String(r);
+    return s.slice(-1) === dv ? cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "-" + dv : "";
+  };
   A.mapa = (r) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(A.lugar(r) + ", Chile")}`;
 
   // Mensaje con todo lo que necesita el equipo que instala
@@ -136,7 +145,7 @@
     const page = (r) => `<section>
       <header><img src="${base}assets/logo-dark.png" alt=""><div><h1>Hoja de instalación</h1><p>Party House · WhatsApp +56 9 5698 1681</p></div>
         <div class="num"><b>${esc(r.codigo)}</b><br>${esc(A.eventoLargo(A.fechaEv(r)))}</div></header>
-      <div class="two"><div><h3>Cliente</h3><p><b>${esc(r.cliente_nombre)}</b><br>${esc(r.cliente_telefono)}<br>${esc(r.cliente_email || "")}</p></div>
+      <div class="two"><div><h3>Cliente</h3><p><b>${esc(r.cliente_nombre)}</b>${r.cliente_rut ? ` · RUT ${esc(r.cliente_rut)}` : ""}<br>${esc(r.cliente_telefono)}<br>${esc(r.cliente_email || "")}</p></div>
         <div><h3>Lugar${r.horario ? ` · ${esc(r.horario)}` : ""}</h3><p><b>${esc(A.lugar(r))}</b>${r.notas ? `<br>${esc(r.notas)}` : ""}</p></div></div>
       ${r.notas_internas ? `<p class="note"><b>Notas internas:</b> ${esc(r.notas_internas)}</p>` : ""}
       <table><thead><tr><th>✓</th><th>Producto</th><th>Cant.</th><th>Total</th></tr></thead><tbody>
@@ -203,8 +212,8 @@
     $("#r-body").onclick = (e) => { const tr = e.target.closest("tr[data-c]"); if (tr) A.go(`/reservas/${tr.dataset.c}`); };
     $("#r-equipo").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado" && A.fechaEv(r) >= hoy()); rows.length ? A.enviarEquipo(rows) : A.toast("No hay eventos próximos confirmados en esta pestaña", true); };
     $("#r-print").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado"); rows.length ? A.imprimir(rows) : A.toast("No hay reservas confirmadas en esta pestaña", true); };
-    $("#r-csv").onclick = () => A.csv(`reservas-${hoy()}.csv`, [["Código", "Fecha evento", "Estado", "Etapa", "Origen", "Cliente", "Teléfono", "Correo", "Comuna", "Productos", "Flete", "Descuento", "Total", "Abono recibido", "Saldo", "Saldo pagado", "Garantía", "Creada"],
-      ...visible().map((r) => [r.codigo, A.fechaEv(r), A.ESTADO[r.estado] || r.estado, A.ETAPA[r.etapa] || "", r.origen, r.cliente_nombre, r.cliente_telefono, r.cliente_email || "", r.comuna, A.resumenItems(r), r.flete, r.descuento, r.total, r.monto_pagado || 0, A.saldo(r), r.saldo_pagado_en ? "sí" : "no", A.GARANTIA[r.garantia_estado] || "", A.dayKey(r.creada)])]);
+    $("#r-csv").onclick = () => A.csv(`reservas-${hoy()}.csv`, [["Código", "Fecha evento", "Estado", "Etapa", "Origen", "Cliente", "RUT", "Teléfono", "Correo", "Comuna", "Productos", "Flete", "Descuento", "Total", "Abono recibido", "Saldo", "Saldo pagado", "Garantía", "Creada"],
+      ...visible().map((r) => [r.codigo, A.fechaEv(r), A.ESTADO[r.estado] || r.estado, A.ETAPA[r.etapa] || "", r.origen, r.cliente_nombre, r.cliente_rut || "", r.cliente_telefono, r.cliente_email || "", r.comuna, A.resumenItems(r), r.flete, r.descuento, r.total, r.monto_pagado || 0, A.saldo(r), r.saldo_pagado_en ? "sí" : "no", A.GARANTIA[r.garantia_estado] || "", A.dayKey(r.creada)])]);
     draw();
   });
 
@@ -291,6 +300,7 @@
               <p style="margin:0 0 6px"><b>${esc(r.cliente_nombre)}</b></p>
               <p style="margin:0 0 6px"><a href="${A.wa(r.cliente_telefono)}" target="_blank" rel="noopener">📱 ${esc(r.cliente_telefono)}</a></p>
               ${r.cliente_email ? `<p style="margin:0 0 6px"><a href="mailto:${esc(r.cliente_email)}">✉️ ${esc(r.cliente_email)}</a></p>` : `<p class="muted" style="margin:0 0 6px">Sin correo</p>`}
+              ${r.cliente_rut ? `<p style="margin:0 0 6px">🪪 RUT ${esc(r.cliente_rut)}</p>` : ""}
               <p style="margin:0 0 6px">📍 ${esc(A.lugar(r))} · <a href="${A.mapa(r)}" target="_blank" rel="noopener">Mapa</a></p>
               <p style="margin:0">⏰ ${r.horario ? esc(r.horario) : `<span class="muted">Horario por coordinar</span>`}</p>
               ${r.notas ? `<div class="sep"></div><p class="small" style="margin:0"><b>Comentario del cliente:</b><br>${esc(r.notas)}</p>` : ""}
@@ -365,11 +375,13 @@
           { name: "nombre", label: "Nombre", value: r.cliente_nombre, required: true },
           { name: "telefono", label: "Teléfono", type: "tel", value: r.cliente_telefono, required: true },
           { name: "email", label: "Correo", type: "email", value: r.cliente_email || "", help: "Sin correo no recibe confirmaciones ni recordatorios de garantía" },
+          { name: "rut", label: "RUT (opcional)", value: r.cliente_rut || "", placeholder: "12.345.678-9" },
           { name: "direccion", label: "Dirección del evento", value: r.direccion || "", placeholder: "Calle, número, casa/depto" },
           { name: "comuna", label: "Comuna", value: r.comuna || "" },
           { name: "horario", label: "Horario de instalación", value: r.horario || "", placeholder: "Ej: 15:00 o 12:00-14:00" },
           { name: "notas", label: "Comentario del cliente", type: "textarea", value: r.notas || "" }] });
-        if (v) guardar({ cliente_nombre: v.nombre, cliente_telefono: v.telefono, cliente_email: v.email.toLowerCase() || null, direccion: v.direccion || null, comuna: v.comuna || r.comuna, horario: v.horario || null, notas: v.notas || null }, "Datos del cliente actualizados");
+        if (v && v.rut.trim() && !A.rut(v.rut)) return A.toast("El RUT no es válido", "error");
+        if (v) guardar({ cliente_nombre: v.nombre, cliente_telefono: v.telefono, cliente_email: v.email.toLowerCase() || null, cliente_rut: A.rut(v.rut) || null, direccion: v.direccion || null, comuna: v.comuna || r.comuna, horario: v.horario || null, notas: v.notas || null }, "Datos del cliente actualizados");
       };
     }
 
@@ -411,7 +423,8 @@
           <div id="lineas"></div></div>
         <div class="card"><h2 style="margin-bottom:12px">Cliente</h2>
           <div class="row2"><label class="f">Nombre<input name="nombre" required></label><label class="f">Teléfono / WhatsApp<input name="telefono" type="tel" required placeholder="+56 9 …"></label></div>
-          <label class="f">Correo <small>(opcional; sin correo no recibe confirmación ni recordatorios de garantía)</small><input name="email" type="email"></label>
+          <div class="row2"><label class="f">Correo <small>(opcional; sin correo no recibe confirmación ni recordatorios de garantía)</small><input name="email" type="email"></label>
+            <label class="f">RUT <small>(opcional)</small><input name="rut" placeholder="12.345.678-9" maxlength="12"></label></div>
           <label class="f">Comentario del cliente<textarea name="notas" rows="2" placeholder="Accesos, estacionamiento, detalles del evento…"></textarea></label>
           <label class="f">Notas internas<textarea name="notas_internas" rows="2" placeholder="Solo las ve el equipo"></textarea></label>
         </div>
@@ -494,6 +507,7 @@
       if (!items.length) return err("Agrega al menos un producto");
       if (!comunaSel()) return err("Indica la comuna");
       if (f.direccion.value.trim().length < 5) return err("Indica la dirección del evento");
+      if (f.rut.value.trim() && !A.rut(f.rut.value)) return err("El RUT no es válido (o déjalo en blanco)");
       const btn = f.querySelector("button.btn-orange"); btn.disabled = true; err("");
       try {
         const codigo = await A.rpc("admin_crear_reserva", { p: {
@@ -501,7 +515,7 @@
           ...(f.flete.value !== "" ? { flete: A.int(f.flete.value) } : {}),
           descuento: A.int(f.descuento.value) || 0, abono_pagado: A.int(f.abono_pagado.value) || 0, abono_medio: f.abono_medio.value,
           garantia: f.garantia.checked, forzar: f.forzar.checked, notas: f.notas.value.trim(), notas_internas: f.notas_internas.value.trim(),
-          cliente: { nombre: f.nombre.value.trim(), telefono: f.telefono.value.trim(), email: f.email.value.trim() },
+          cliente: { nombre: f.nombre.value.trim(), telefono: f.telefono.value.trim(), email: f.email.value.trim(), rut: A.rut(f.rut.value) },
         } });
         A.toast(`Reserva ${codigo} creada`);
         A.refreshBadges();
