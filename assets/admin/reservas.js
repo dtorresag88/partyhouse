@@ -47,6 +47,9 @@
     const otra = actual && !cs.some((c) => c.nombre === actual);
     return `<option value="">Elige…</option>${cs.map((c) => `<option value="${esc(c.nombre)}" ${c.nombre === actual ? "selected" : ""}>${esc(c.nombre)} · ${clp(c.valor)}</option>`).join("")}${otra ? `<option value="${esc(actual)}" selected>${esc(actual)} (sin tarifa)</option>` : ""}<option value="__otra">Otra (escribir)</option>`;
   };
+  // Productos escritos a mano (no están en el catálogo): id "manual-xxxx"
+  A.esManual = (id) => /^manual-/.test(id || "");
+  A.lineaManual = () => ({ id: "manual-" + Math.random().toString(36).slice(2, 10), manual: true, nombre: "", qty: 1, precio: null });
   // Flete según comuna y productos; null si la comuna no tiene tarifa
   A.fleteAuto = (comuna, ids) => {
     if (ids.length && ids.every((id) => A.prod(id)?.sin_flete)) return 0;
@@ -415,11 +418,11 @@
     async function editarProductos() {
       await A.loadCatalog();
       const fecha = A.fechaEv(r);
-      const st = { lineas: r.items.map((i) => ({ id: i.id, nombre: i.nombre, qty: i.qty, precio: i.precio })), oc: null };
+      const st = { lineas: r.items.map((i) => ({ id: i.id, nombre: i.nombre, qty: i.qty, precio: i.precio, manual: A.esManual(i.id) })), oc: null };
       const m = A.modal({ title: "Productos del evento", wide: true, body: `
         <div class="row2"><label class="f">Comuna<select name="comuna">${A.optsComuna(r.comuna)}</select></label>
           <label class="f" id="e-otra" hidden>Nombre de la comuna<input name="comuna_otra" placeholder="Ej: Pirque"></label></div>
-        <div class="card-head" style="margin:4px 0 8px"><h3 style="margin:0">Productos</h3><button type="button" class="btn btn-sm" id="e-add">＋ Agregar producto</button></div>
+        <div class="card-head" style="margin:4px 0 8px"><h3 style="margin:0">Productos</h3><div class="btn-group"><button type="button" class="btn btn-sm" id="e-add">＋ Agregar producto</button><button type="button" class="btn btn-sm" id="e-add-m">✍️ Producto manual</button></div></div>
         <div id="e-lineas"></div>
         <div class="row2" style="margin-top:8px"><label class="f">Flete y montaje<div class="prefix"><span>$</span><input name="flete" type="number" min="0" value="${r.flete || 0}"></div><small id="e-flete-help"></small></label>
           <label class="f">Descuento<div class="prefix"><span>$</span><input name="descuento" type="number" min="0" value="${r.descuento || 0}"></div></label></div>
@@ -428,13 +431,14 @@
       const el = m.el, q = (s) => el.querySelector(s);
       const comunaSel = () => q("[name=comuna]").value === "__otra" ? q("[name=comuna_otra]").value.trim() : q("[name=comuna]").value;
       const ids = () => st.lineas.filter((l) => l.id).map((l) => l.id);
-      const opts = A.optsProd(st.lineas);
+      const opts = A.optsProd(st.lineas.filter((l) => !l.manual));
       const calc = () => {
-        const sub = st.lineas.reduce((s, l) => s + (l.id ? l.precio * l.qty : 0), 0);
+        const sub = st.lineas.reduce((s, l) => s + (l.id ? (l.precio || 0) * l.qty : 0), 0);
         const flete = A.int(q("[name=flete]").value) || 0, desc = A.int(q("[name=descuento]").value) || 0;
         return { sub, flete, desc, total: sub + flete - desc };
       };
       const totales = () => {
+        q("#e-err").textContent = "";
         const auto = A.fleteAuto(comunaSel(), ids());
         q("#e-flete-help").textContent = auto != null ? `Según la comuna: ${clp(auto)}` : comunaSel() ? "Esta comuna no tiene tarifa: escríbelo a mano" : "";
         const t = calc(), pagado = r.monto_pagado || 0;
@@ -447,9 +451,9 @@
         q("#e-lineas").innerHTML = st.lineas.map((l, i) => {
           const oc = st.oc && l.id ? st.oc.ocupados[l.id] : null;
           return `<div class="linea-prod" data-i="${i}">
-            <select data-k="id">${opts.replace(`value="${esc(l.id)}"`, `value="${esc(l.id)}" selected`)}</select>
+            ${A.esManual(l.id) ? `<input data-k="nombre" value="${esc(l.nombre || "")}" placeholder="Nombre del producto o servicio" aria-label="Nombre" maxlength="120">` : `<select data-k="id">${opts.replace(`value="${esc(l.id)}"`, `value="${esc(l.id)}" selected`)}</select>`}
             <input data-k="qty" type="number" min="1" value="${l.qty}" aria-label="Cantidad">
-            <div class="prefix"><span>$</span><input data-k="precio" type="number" min="0" value="${l.id ? l.precio : ""}" aria-label="Precio unitario"></div>
+            <div class="prefix"><span>$</span><input data-k="precio" type="number" min="0" value="${l.id && l.precio != null ? l.precio : ""}" placeholder="Precio" aria-label="Precio unitario"></div>
             <button type="button" class="btn btn-plain danger" data-del="${i}" aria-label="Quitar">✕</button>
             ${oc ? `<small style="grid-column:1/-1;color:var(--red);font-weight:700;margin-top:-4px">⚠ Ocupado ese día: ${esc(oc)}</small>` : ""}
           </div>`;
@@ -458,14 +462,17 @@
       };
       const fleteAuto = () => { const a = A.fleteAuto(comunaSel(), ids()); if (a != null) q("[name=flete]").value = a; totales(); };
       q("#e-add").onclick = () => { st.lineas.push({ id: "", qty: 1, precio: 0 }); drawLineas(); };
+      q("#e-add-m").onclick = () => { st.lineas.push(A.lineaManual()); drawLineas(); fleteAuto(); q("#e-lineas .linea-prod:last-child [data-k=nombre]").focus(); };
       q("#e-lineas").addEventListener("change", (e) => {
         const row = e.target.closest("[data-i]"); if (!row) return;
         const l = st.lineas[+row.dataset.i], k = e.target.dataset.k;
         if (k === "id") { const p = A.prod(e.target.value); l.id = e.target.value; l.nombre = p?.nombre || l.nombre; l.precio = p?.precio ?? 0; drawLineas(); fleteAuto(); return; }
+        if (k === "nombre") l.nombre = e.target.value.trim();
         if (k === "qty") l.qty = Math.max(1, A.int(e.target.value) || 1);
         if (k === "precio") l.precio = Math.max(0, A.int(e.target.value) || 0);
         totales();
       });
+      q("#e-lineas").addEventListener("input", (e) => { if (e.target.dataset.k === "nombre") st.lineas[+e.target.closest("[data-i]").dataset.i].nombre = e.target.value.trim(); });
       q("#e-lineas").addEventListener("click", (e) => { const d = e.target.closest("[data-del]"); if (d) { st.lineas.splice(+d.dataset.del, 1); drawLineas(); fleteAuto(); } });
       q("[name=comuna]").onchange = () => { q("#e-otra").hidden = q("[name=comuna]").value !== "__otra"; fleteAuto(); };
       ["flete", "descuento"].forEach((n) => (q(`[name=${n}]`).oninput = totales));
@@ -476,12 +483,14 @@
         const err = (t) => { q("#e-err").textContent = t; };
         const lineas = st.lineas.filter((l) => l.id);
         if (!lineas.length) return err("La reserva debe tener al menos un producto");
+        if (lineas.some((l) => l.manual && !l.nombre)) return err("Escribe el nombre del producto manual");
+        if (lineas.some((l) => l.manual && l.precio == null)) return err("Indica el precio del producto manual");
         if (!comunaSel()) return err("Indica la comuna");
         const t = calc();
         if (t.total <= 0) return err("El total debe ser mayor a $0");
         const malos = st.oc ? lineas.filter((l) => st.oc.ocupados[l.id] && !r.items.some((i) => i.id === l.id)) : [];
         if (r.estado === "pagado" && malos.length && !(await A.confirm({ title: "Producto ocupado", message: `No disponible ese día: ${esc(malos.map((l) => `${l.nombre} (${st.oc.ocupados[l.id]})`).join(", "))}.<br><br>¿Guardar de todos modos?`, ok: "Guardar igual", danger: true }))) return;
-        const items = lineas.map((l) => ({ id: l.id, nombre: A.prod(l.id)?.nombre || l.nombre, qty: l.qty, fecha, precio: l.precio }));
+        const items = lineas.map((l) => ({ id: l.id, nombre: A.prod(l.id)?.nombre || l.nombre, qty: l.qty, fecha, precio: l.precio || 0, ...(l.manual ? { manual: true } : {}) }));
         const resumen = (xs) => xs.map((i) => `${i.qty}× ${i.nombre} ${i.precio}`).join(", ");
         const partes = [];
         if (resumen(items) !== resumen(r.items)) partes.push(`productos: ${items.map((i) => `${i.qty}× ${i.nombre}`).join(", ")}`);
@@ -532,7 +541,7 @@
             <label class="f">Horario de instalación<input name="horario" placeholder="Ej: 15:00"></label></div>
           <p class="help" id="dia-info" style="margin:-4px 0 0"></p>
         </div>
-        <div class="card"><div class="card-head"><h2>Productos</h2><button type="button" class="btn btn-sm" id="add-l">＋ Agregar producto</button></div>
+        <div class="card"><div class="card-head"><h2>Productos</h2><div class="btn-group"><button type="button" class="btn btn-sm" id="add-l">＋ Agregar producto</button><button type="button" class="btn btn-sm" id="add-m">✍️ Producto manual</button></div></div>
           <div id="lineas"></div></div>
         <div class="card"><h2 style="margin-bottom:12px">Cliente</h2>
           <div class="row2"><label class="f">Nombre<input name="nombre" required></label><label class="f">Teléfono / WhatsApp<input name="telefono" type="tel" required placeholder="+56 9 …"></label></div>
@@ -565,9 +574,9 @@
         const p = A.prod(l.id);
         const oc = st.oc && l.id ? st.oc.ocupados[l.id] : null;
         return `<div class="linea-prod" data-i="${i}">
-          <select data-k="id">${optsProd.replace(`value="${esc(l.id)}"`, `value="${esc(l.id)}" selected`)}</select>
+          ${A.esManual(l.id) ? `<input data-k="nombre" value="${esc(l.nombre || "")}" placeholder="Nombre del producto o servicio" aria-label="Nombre" maxlength="120">` : `<select data-k="id">${optsProd.replace(`value="${esc(l.id)}"`, `value="${esc(l.id)}" selected`)}</select>`}
           <input data-k="qty" type="number" min="1" value="${l.qty}" aria-label="Cantidad">
-          <div class="prefix"><span>$</span><input data-k="precio" type="number" min="0" value="${l.precio ?? p?.precio ?? ""}" aria-label="Precio unitario"></div>
+          <div class="prefix"><span>$</span><input data-k="precio" type="number" min="0" value="${l.precio ?? p?.precio ?? ""}" placeholder="Precio" aria-label="Precio unitario"></div>
           <button type="button" class="btn btn-plain danger" data-del="${i}" aria-label="Quitar">✕</button>
           ${oc ? `<small style="grid-column:1/-1;color:var(--red);font-weight:700;margin-top:-4px">⚠ Ocupado ese día: ${esc(oc)}</small>` : ""}
         </div>`;
@@ -575,7 +584,7 @@
       totales();
     }
     function totales() {
-      const sub = st.lineas.reduce((s, l) => s + (l.id ? (l.precio ?? A.prod(l.id).precio) * l.qty : 0), 0);
+      const sub = st.lineas.reduce((s, l) => s + (l.id ? (l.precio ?? A.prod(l.id)?.precio ?? 0) * l.qty : 0), 0);
       const auto = fleteAuto();
       const flete = f.flete.value !== "" ? A.int(f.flete.value) : auto;
       $("#flete-help").textContent = auto != null ? `Según la comuna: ${clp(auto)}` : f.comuna.value ? "Escribe el flete para esta comuna" : "";
@@ -598,10 +607,16 @@
     }
 
     $("#add-l").onclick = () => { st.lineas.push({ id: "", qty: 1, precio: null }); drawLineas(); };
+    $("#add-m").onclick = () => {
+      if (st.lineas.length === 1 && !st.lineas[0].id) st.lineas.pop();  // reemplaza la línea vacía inicial
+      st.lineas.push(A.lineaManual()); drawLineas(); rellenarFlete(); $("#lineas .linea-prod:last-child [data-k=nombre]").focus();
+    };
+    $("#lineas").addEventListener("input", (e) => { if (e.target.dataset.k === "nombre") st.lineas[+e.target.closest("[data-i]").dataset.i].nombre = e.target.value.trim(); });
     $("#lineas").addEventListener("change", (e) => {
       const row = e.target.closest("[data-i]"); if (!row) return;
       const l = st.lineas[+row.dataset.i], k = e.target.dataset.k;
       if (k === "id") { l.id = e.target.value; l.precio = null; drawLineas(); rellenarFlete(); return; }
+      if (k === "nombre") l.nombre = e.target.value.trim();
       if (k === "qty") l.qty = Math.max(1, A.int(e.target.value) || 1);
       if (k === "precio") l.precio = e.target.value === "" ? null : A.int(e.target.value);
       totales();
@@ -612,10 +627,14 @@
     ["flete", "descuento", "abono_pagado"].forEach((n) => (f[n].oninput = totales));
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const items = st.lineas.filter((l) => l.id).map((l) => ({ id: l.id, qty: l.qty, ...(l.precio != null && l.precio !== A.prod(l.id).precio ? { precio: l.precio } : {}) }));
+      const items = st.lineas.filter((l) => l.id).map((l) => l.manual
+        ? { id: l.id, manual: true, nombre: l.nombre, qty: l.qty, precio: l.precio }
+        : { id: l.id, qty: l.qty, ...(l.precio != null && l.precio !== A.prod(l.id).precio ? { precio: l.precio } : {}) });
       const err = (m) => { $("#nv-err").textContent = m; };
       if (!f.fecha.value) return err("Elige la fecha del evento");
       if (!items.length) return err("Agrega al menos un producto");
+      if (items.some((i) => i.manual && !i.nombre)) return err("Escribe el nombre del producto manual");
+      if (items.some((i) => i.manual && i.precio == null)) return err("Indica el precio del producto manual");
       if (!comunaSel()) return err("Indica la comuna");
       if (f.direccion.value.trim().length < 5) return err("Indica la dirección del evento");
       if (f.rut.value.trim() && !A.rut(f.rut.value)) return err("El RUT no es válido (o déjalo en blanco)");
