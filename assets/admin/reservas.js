@@ -198,7 +198,7 @@
       const fn = TABS.find((t) => t[0] === st.tab)[2];
       const lista = all.filter((r) => fn(r) && (!st.q || A.match(`${r.codigo} ${r.cliente_nombre} ${r.cliente_email || ""} ${r.cliente_telefono} ${r.comuna} ${A.resumenItems(r)}`, st.q)));
       // Próximas y por instalar: por fecha del evento; el resto: más recientes primero
-      if (["proximas", "por_instalar", "instaladas"].includes(st.tab)) lista.sort((a, b) => A.fechaEv(a).localeCompare(A.fechaEv(b)));
+      if (["proximas", "por_instalar", "instaladas"].includes(st.tab)) lista.sort((a, b) => A.fechaEv(a).localeCompare(A.fechaEv(b)) || (a.horario || "99").localeCompare(b.horario || "99", "es", { numeric: true }));
       return lista;
     };
     A.render(`<div class="page">
@@ -206,7 +206,7 @@
       <div class="card flush">
         <div class="tabs" id="r-tabs">${TABS.map(([k, l]) => `<button data-tab="${k}">${l}<span class="c"></span></button>`).join("")}</div>
         <div class="toolbar"><div class="grow"><input id="r-q" type="search" placeholder="Buscar por código, cliente, teléfono, comuna o producto" value="${esc(st.q)}"></div></div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Evento</th><th>Código</th><th>Cliente</th><th class="hide-sm">Productos</th><th class="num">Total</th><th>Estado</th><th class="hide-sm">Garantía</th></tr></thead><tbody id="r-body"></tbody></table></div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Evento</th><th>Instalación</th><th>Código</th><th>Cliente</th><th class="hide-sm">Productos</th><th class="num">Total</th><th>Estado</th><th class="hide-sm">Garantía</th></tr></thead><tbody id="r-body"></tbody></table></div>
       </div></div>`);
     function draw() {
       const rows = visible();
@@ -215,13 +215,14 @@
         const cuando = d === 0 ? "Hoy" : d === 1 ? "Mañana" : d > 1 && d <= 14 ? `en ${d} días` : "";
         return `<tr class="click" data-c="${esc(r.codigo)}">
           <td class="nowrap"><b>${A.evento(A.fechaEv(r))}</b>${cuando ? `<br><small class="muted">${cuando}</small>` : ""}</td>
+          <td class="nowrap">${r.horario ? `<b>⏰ ${esc(r.horario)}</b>` : `<button class="btn btn-sm btn-plain" data-hora="${esc(r.codigo)}" title="Definir horario de instalación">＋ Horario</button>`}</td>
           <td class="nowrap"><span class="mono">${esc(r.codigo)}</span>${r.origen === "manual" ? ` <span title="Creada desde el panel">🧾</span>` : ""}</td>
           <td class="nowrap">${esc(r.cliente_nombre)}<br><small class="muted">${esc(r.comuna)}</small></td>
           <td class="hide-sm"><small>${esc(A.resumenItems(r))}</small></td>
           <td class="num"><b>${clp(r.total)}</b>${r.estado === "pagado" && !r.saldo_pagado_en && A.saldo(r) ? `<br><small class="muted">saldo ${clp(A.saldo(r))}</small>` : ""}</td>
           <td>${A.estadoBadge(r)} ${A.etapaBadge(r)}</td>
           <td class="hide-sm">${A.garantiaBadge(r)}</td></tr>`;
-      }).join("") : `<tr><td colspan="7"><div class="empty-state"><div class="emo">📭</div><h3>No hay reservas aquí</h3><p>${st.q ? "Prueba con otra búsqueda." : "Prueba con otra pestaña o crea una reserva."}</p></div></td></tr>`;
+      }).join("") : `<tr><td colspan="8"><div class="empty-state"><div class="emo">📭</div><h3>No hay reservas aquí</h3><p>${st.q ? "Prueba con otra búsqueda." : "Prueba con otra pestaña o crea una reserva."}</p></div></td></tr>`;
       $$("#r-tabs button").forEach((b) => {
         b.classList.toggle("on", b.dataset.tab === st.tab);
         b.querySelector(".c").textContent = all.filter(TABS.find((t) => t[0] === b.dataset.tab)[2]).length;
@@ -229,11 +230,21 @@
     }
     $("#r-tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { st.tab = b.dataset.tab; draw(); } };
     $("#r-q").oninput = A.debounce((e) => { st.q = e.target.value.trim(); draw(); }, 200);
-    $("#r-body").onclick = (e) => { const tr = e.target.closest("tr[data-c]"); if (tr) A.go(`/reservas/${tr.dataset.c}`); };
+    $("#r-body").onclick = async (e) => {
+      const h = e.target.closest("[data-hora]");
+      if (h) {
+        e.stopPropagation();
+        const r = all.find((x) => x.codigo === h.dataset.hora);
+        const v = await A.ask({ title: `Horario de instalación · ${r.codigo}`, intro: `${esc(r.cliente_nombre)} · ${esc(A.eventoLargo(A.fechaEv(r)))}`, ok: "Guardar", fields: [{ name: "horario", label: "Hora de instalación", value: "", placeholder: "Ej: 15:00 o 12:00-14:00", required: true }] });
+        if (v?.horario.trim()) { try { await A.actualizarReserva(r, { horario: v.horario.trim() }, `Horario de instalación: ${v.horario.trim()}`); A.toast("Horario guardado"); draw(); } catch (err) { A.fail(err); } }
+        return;
+      }
+      const tr = e.target.closest("tr[data-c]"); if (tr) A.go(`/reservas/${tr.dataset.c}`);
+    };
     $("#r-equipo").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado" && A.fechaEv(r) >= hoy()); rows.length ? A.enviarEquipo(rows) : A.toast("No hay eventos próximos confirmados en esta pestaña", true); };
     $("#r-print").onclick = () => { const rows = visible().filter((r) => r.estado === "pagado"); rows.length ? A.imprimir(rows) : A.toast("No hay reservas confirmadas en esta pestaña", true); };
-    $("#r-csv").onclick = () => A.csv(`reservas-${hoy()}.csv`, [["Código", "Fecha evento", "Estado", "Etapa", "Origen", "Cliente", "RUT", "Teléfono", "Correo", "Comuna", "Productos", "Flete", "Descuento", "Total", "Abono recibido", "Saldo", "Saldo pagado", "Garantía", "Creada"],
-      ...visible().map((r) => [r.codigo, A.fechaEv(r), A.ESTADO[r.estado] || r.estado, A.ETAPA[r.etapa] || "", r.origen, r.cliente_nombre, r.cliente_rut || "", r.cliente_telefono, r.cliente_email || "", r.comuna, A.resumenItems(r), r.flete, r.descuento, r.total, r.monto_pagado || 0, A.saldo(r), r.saldo_pagado_en ? "sí" : "no", A.GARANTIA[r.garantia_estado] || "", A.dayKey(r.creada)])]);
+    $("#r-csv").onclick = () => A.csv(`reservas-${hoy()}.csv`, [["Código", "Fecha evento", "Horario", "Estado", "Etapa", "Origen", "Cliente", "RUT", "Teléfono", "Correo", "Comuna", "Productos", "Flete", "Descuento", "Total", "Abono recibido", "Saldo", "Saldo pagado", "Garantía", "Creada"],
+      ...visible().map((r) => [r.codigo, A.fechaEv(r), r.horario || "", A.ESTADO[r.estado] || r.estado, A.ETAPA[r.etapa] || "", r.origen, r.cliente_nombre, r.cliente_rut || "", r.cliente_telefono, r.cliente_email || "", r.comuna, A.resumenItems(r), r.flete, r.descuento, r.total, r.monto_pagado || 0, A.saldo(r), r.saldo_pagado_en ? "sí" : "no", A.GARANTIA[r.garantia_estado] || "", A.dayKey(r.creada)])]);
     draw();
   });
 
