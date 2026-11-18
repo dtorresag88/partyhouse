@@ -83,7 +83,7 @@
           const url = location.href.split("#")[0];
           if (r === "added") A.toast("Listo: ya tiene acceso");
           else A.modal({ title: "Invitación creada", body: `<p>Envíale este mensaje a <b>${esc(v.email)}</b>:</p><textarea rows="5" readonly id="inv-msg">¡Hola! Te di acceso al panel de Party House 🎉\n1. Entra a ${url}\n2. Elige "¿Primera vez? Crear cuenta" con ${v.email}\n3. Confirma el correo que te llega y vuelve a ingresar.</textarea>`,
-            foot: `<a class="btn btn-green" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`¡Hola! Te di acceso al panel de Party House 🎉\n1. Entra a ${url}\n2. Elige "¿Primera vez? Crear cuenta" con ${v.email}\n3. Confirma el correo que te llega y vuelve a ingresar.`)}">Enviar por WhatsApp</a><button class="btn btn-primary" data-x>Listo</button>` });
+            foot: `<a class="btn btn-green" target="_blank" rel="noopener" href="${A.wa("", `¡Hola! Te di acceso al panel de Party House 🎉\n1. Entra a ${url}\n2. Elige "¿Primera vez? Crear cuenta" con ${v.email}\n3. Confirma el correo que te llega y vuelve a ingresar.`)}">Enviar por WhatsApp</a><button class="btn btn-primary" data-x>Listo</button>` });
           draw();
         } catch (e) { A.fail(e); }
       };

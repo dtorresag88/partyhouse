@@ -30,7 +30,7 @@
       `Para reservar pagas el abono del ${pct}%${f != null ? ` (*${clp(Math.round(total * pct / 100))}*)` : ""} con Mercado Pago. Solo completa tus datos aquí 👇`,
       link(c), "", `El link está disponible hasta el ${A.evento(c.vence)}. ¡Cualquier duda me escribes!`].join("\n");
   };
-  const enviarWA = (c) => window.open(c.cliente_telefono ? A.wa(c.cliente_telefono, A.textoCarrito(c)) : `https://wa.me/?text=${encodeURIComponent(A.textoCarrito(c))}`, "_blank", "noopener");
+  const enviarWA = (c) => window.open(A.wa(c.cliente_telefono || "", A.textoCarrito(c)), "_blank", "noopener");
   const copiar = (txt, ok) => navigator.clipboard.writeText(txt).then(() => A.toast(ok), () => A.toast("No se pudo copiar", true));
 
   // ------------------------------------------------------------ lista

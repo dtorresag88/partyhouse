@@ -52,7 +52,8 @@
     else if (d.length === 8) d = "569" + d;
     return d;
   };
-  A.wa = (phone, text = "") => `https://wa.me/${A.phoneIntl(phone)}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+  // api.whatsapp.com directo (sin teléfono: elegir chat). El redireccionamiento de wa.me rompe los emojis (🎉 → �).
+  A.wa = (phone, text = "") => `https://api.whatsapp.com/send?${phone ? `phone=${A.phoneIntl(phone)}` : ""}${text ? `${phone ? "&" : ""}text=${encodeURIComponent(text)}` : ""}`;
   A.storeUrl = () => (CFG.SITE_URL || location.href.replace(/admin\.html.*$/, "")).replace(/\/$/, "");
 
   A.toast = (msg, bad = false) => {

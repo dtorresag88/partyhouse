@@ -100,7 +100,7 @@
       foot: `<button class="btn" id="eq-copy">📋 Copiar</button><a class="btn btn-green" id="eq-wa" target="_blank" rel="noopener">Abrir WhatsApp →</a>` });
     const val = () => m.el.querySelector("#eq-txt").value;
     const wa = m.el.querySelector("#eq-wa");
-    const upd = () => (wa.href = `https://wa.me/?text=${encodeURIComponent(val())}`);
+    const upd = () => (wa.href = A.wa("", val()));
     m.el.querySelector("#eq-txt").addEventListener("input", upd); upd();
     m.el.querySelector("#eq-copy").onclick = () => navigator.clipboard.writeText(val()).then(() => A.toast("Copiado: pégalo en el grupo del equipo"), () => A.toast("No se pudo copiar", true));
   };
@@ -272,7 +272,7 @@
         ${["pendiente", "rechazado"].includes(r.estado) ? `<div class="banner warn"><div><b>Esta reserva no está confirmada</b>El cliente no completó el pago, así que la fecha no quedó bloqueada. Si pagó por otro medio, usa "Más acciones → Confirmar".</div></div>` : ""}
         <div class="cols">
           <div class="stack">
-            <div class="card flush"><div class="card-head" style="padding:16px 16px 0"><h2>Productos</h2>${r.estado !== "cancelado" ? `<button class="btn btn-sm" id="d-items">✏️ Editar productos y flete</button>` : ""}</div>
+            <div class="card flush"><div class="card-head" style="padding:16px 16px 0"><h2>Productos</h2>${r.estado !== "cancelado" ? `<div class="btn-group"><button class="btn btn-sm" id="d-manual">✍️ Agregar producto manual</button><button class="btn btn-sm" id="d-items">✏️ Editar productos y flete</button></div>` : ""}</div>
               <div class="tbl-wrap"><table class="tbl"><tbody>${r.items.map((i) => { const p = A.prod(i.id); return `<tr>
                 <td><div class="pcell">${A.thumb(p?.imagenes?.[0], A.catEmoji(p?.categoria))}<div><b>${esc(i.nombre)}</b><small class="muted">${esc(p?.tamano || "")}</small></div></div></td>
                 <td class="num">${clp(i.precio)} × ${i.qty}</td><td class="num"><b>${clp(i.precio * i.qty)}</b></td></tr>`; }).join("")}</tbody></table></div>
@@ -351,7 +351,8 @@
     function bind() {
       A.dropdown($("#d-wa"), $("#d-wa-menu"));
       $("#d-equipo")?.addEventListener("click", () => A.enviarEquipo([r]));
-      $("#d-items")?.addEventListener("click", editarProductos);
+      $("#d-items")?.addEventListener("click", () => editarProductos());
+      $("#d-manual")?.addEventListener("click", () => editarProductos(true));
       $("#p-cobrar")?.addEventListener("click", () => A.cobrarSaldo(r, draw));
       A.dropdown($("#d-more"), $("#d-more-menu"));
       $("#d-wa-menu").onclick = (e) => { const b = e.target.closest("[data-wa]"); if (b) window.open(A.wa(r.cliente_telefono, A.waTemplates(r)[+b.dataset.wa][1]), "_blank", "noopener"); };
@@ -426,7 +427,7 @@
     }
 
     // Editar productos, cantidades, precios, comuna, flete y descuento de la reserva
-    async function editarProductos() {
+    async function editarProductos(conManual = false) {
       await A.loadCatalog();
       const fecha = A.fechaEv(r);
       const st = { lineas: r.items.map((i) => ({ id: i.id, nombre: i.nombre, qty: i.qty, precio: i.precio, manual: A.esManual(i.id) })), oc: null };
@@ -487,7 +488,9 @@
       q("#e-lineas").addEventListener("click", (e) => { const d = e.target.closest("[data-del]"); if (d) { st.lineas.splice(+d.dataset.del, 1); drawLineas(); fleteAuto(); } });
       q("[name=comuna]").onchange = () => { q("#e-otra").hidden = q("[name=comuna]").value !== "__otra"; fleteAuto(); };
       ["flete", "descuento"].forEach((n) => (q(`[name=${n}]`).oninput = totales));
+      if (conManual) st.lineas.push(A.lineaManual());
       drawLineas();
+      if (conManual) { fleteAuto(); setTimeout(() => q("#e-lineas .linea-prod:last-child [data-k=nombre]")?.focus(), 60); }
       A.ocupacionDia(fecha, r.codigo).then((oc) => { st.oc = oc; if (el.isConnected) drawLineas(); }).catch(() => {});
 
       q("#e-ok").onclick = async () => {

@@ -215,7 +215,8 @@
   // ============ WHATSAPP HELPERS ============
   PH.waLink = function(message){
     const phone = '56949022463';
-    return 'https://wa.me/' + phone + (message ? '?text=' + encodeURIComponent(message) : '');
+    // api.whatsapp.com directo: el redireccionamiento de wa.me rompe los emojis (🎉 → �)
+    return 'https://api.whatsapp.com/send?phone=' + phone + (message ? '&text=' + encodeURIComponent(message) : '');
   };
 
   // ============ PAGOS (Mercado Pago vía Supabase Edge Function) ============
