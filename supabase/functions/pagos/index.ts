@@ -2,6 +2,8 @@
 //
 // Rutas (todas bajo /functions/v1/pagos):
 //   POST /crear           → valida carrito, recalcula precios y flete en el servidor, crea la reserva y el cobro
+//                           (con { carrito: TOKEN } usa el carrito armado en el panel: sus precios, fecha y flete)
+//   GET  /carrito?c=TOKEN → carrito armado en el panel, para la página pedido.html
 //   POST /webhook         → notificación de Mercado Pago; consulta el pago a la API y actualiza la reserva
 //   GET  /estado?codigo=  → estado de una reserva (sin datos personales) para la página pago.html
 //   GET  /disponibilidad  → fechas ya pagadas de productos con bloqueo automático
@@ -174,6 +176,11 @@ function motivoNoDisponible(id: string, fecha: string, dispo: Dispo, pagadas: Re
   const hoy = todayCL();
   if (fecha < addDays(hoy, dispo.diasAnticipacion ?? 3)) return `reservamos con al menos ${dispo.diasAnticipacion ?? 3} días de anticipación`;
   if (fecha > addMonths(hoy, dispo.mesesMaximo || 4)) return 'esa fecha aún no está abierta para reservas';
+  return motivoOcupado(id, fecha, dispo, pagadas);
+}
+// Solo ocupación (día cerrado, bloqueos y reservas pagadas del mismo equipo). Los carritos armados en el panel
+// no aplican anticipación mínima ni meses abiertos: la fecha ya se acordó con el cliente.
+function motivoOcupado(id: string, fecha: string, dispo: Dispo, pagadas: Record<string, string[]>) {
   if ((dispo.cerrado || []).includes(fecha)) return 'ese día no tenemos atención';
   const grupo = (dispo.comparten || []).find((g) => g.includes(id)) || [id];
   for (const g of grupo) {
@@ -226,6 +233,10 @@ async function aplicarPago(paymentId: string) {
 
   // Correos: cada uno se envía una sola vez (webhook y página pueden llegar a la vez); si falla, se reintenta
   // en la próxima notificación de Mercado Pago.
+  if (estado === 'pagado' && res.carrito_token) {
+    await db.from('carritos').update({ estado: 'pagado', pagado_en: upd.pagada_en || res.pagada_en || new Date().toISOString(), reserva_codigo: codigo })
+      .eq('token', res.carrito_token).neq('estado', 'pagado');
+  }
   if (estado === 'pagado') {
     await enviarUnaVez(res, 'aviso_enviado_en', () => avisarPago(actual));
     await enviarUnaVez(res, 'confirmacion_cliente_en', () => confirmarCliente(actual));
@@ -488,22 +499,28 @@ async function firmaValida(req: Request, url: URL) {
 }
 
 // ---------- rutas ----------
-async function crear(req: Request) {
-  const body = await req.json().catch(() => null);
-  const items = Array.isArray(body?.items) ? body.items : [];
-  const c = body?.cliente || {};
-  if (items.length < 1 || items.length > 40) return json(req, { error: 'carrito_invalido' }, 400);
-
+// Datos del cliente del checkout / pedido. Devuelve el cliente limpio o el código de error.
+// deno-lint-ignore no-explicit-any
+function leerCliente(c: any, comunaFija?: string | null): { cliente?: Record<string, string>; error?: string } {
   const cliente = {
     nombre: clip(c.name, 80), telefono: clip(c.phone, 30), email: clip(c.email, 120),
-    comuna: clip(c.comuna, 60), notas: clip(c.notes, 600), direccion: clip(c.direccion, 200), horario: clip(c.horario, 60), rut: clip(c.rut, 14),
+    comuna: clip(comunaFija || c.comuna, 60), notas: clip(c.notes, 600), direccion: clip(c.direccion, 200), horario: clip(c.horario, 60), rut: clip(c.rut, 14),
   };
-  if (cliente.rut && !(cliente.rut = rutValido(cliente.rut))) return json(req, { error: 'rut_invalido' }, 400);
-  if (cliente.direccion.length < 5) return json(req, { error: 'falta_direccion' }, 400);
+  if (cliente.rut && !(cliente.rut = rutValido(cliente.rut))) return { error: 'rut_invalido' };
+  if (cliente.direccion.length < 5) return { error: 'falta_direccion' };
   if (cliente.nombre.length < 2 || !/^[\d\s+()-]{7,}$/.test(cliente.telefono) ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email) || !cliente.comuna) {
-    return json(req, { error: 'datos_cliente_invalidos' }, 400);
-  }
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email) || !cliente.comuna) return { error: 'datos_cliente_invalidos' };
+  return { cliente };
+}
+
+async function crear(req: Request) {
+  const body = await req.json().catch(() => null);
+  if (body?.carrito) return await crearDesdeCarrito(req, body);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  if (items.length < 1 || items.length > 40) return json(req, { error: 'carrito_invalido' }, 400);
+  const lc = leerCliente(body?.cliente || {});
+  if (lc.error) return json(req, { error: lc.error }, 400);
+  const cliente = lc.cliente!;
 
   const { productos, dispo, transporte, ajustes } = await cargarSitio();
   const pagadas = await fechasPagadas(dispo);
@@ -539,6 +556,16 @@ async function crear(req: Request) {
   }).select('id').single();
   if (error) throw error;
 
+  const init_point = await cobroAbono({ id: res.id, codigo, fechas, comuna: cliente.comuna, lineas, flete, abono, pct: ajustes.abono_pct, nombre: cliente.nombre, email: cliente.email });
+  return json(req, { codigo, total, abono, flete, init_point });
+}
+
+// Preferencia de Mercado Pago por el abono de una reserva recién creada. Devuelve el link de pago.
+async function cobroAbono(o: { id: string; codigo: string; fechas: string[]; comuna: string; lineas: Array<{ nombre: string; qty: number }>;
+  flete: number; abono: number; pct: number; nombre: string; email: string }) {
+  const { codigo, fechas, lineas, flete, abono } = o;
+  const cliente = { comuna: o.comuna, nombre: o.nombre, email: o.email };
+  const ajustes = { abono_pct: o.pct };
   const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/pagos`;
   const fechaTxt = fechas.map((f) => f.split('-').reverse().join('-')).join(', ');
   const pref = await mp('/checkout/preferences', {
@@ -570,8 +597,103 @@ async function crear(req: Request) {
       metadata: { codigo },
     }),
   });
-  await db.from('reservas').update({ mp_preference_id: pref.id }).eq('id', res.id);
-  return json(req, { codigo, total, abono, flete, init_point: pref.init_point });
+  await db.from('reservas').update({ mp_preference_id: pref.id }).eq('id', o.id);
+  return pref.init_point as string;
+}
+
+// ---------- carritos armados en el panel ----------
+// deno-lint-ignore no-explicit-any
+type Carrito = Record<string, any>;
+async function leerCarrito(token: unknown) {
+  const t = clip(token, 24);
+  if (!/^[A-Za-z0-9]{8,24}$/.test(t)) return null;
+  const { data } = await db.from('carritos').select('*').eq('token', t).maybeSingle();
+  return data as Carrito | null;
+}
+function estadoCarrito(car: Carrito) {
+  if (car.estado === 'pagado') return 'pagado';
+  if (car.estado === 'anulado') return 'anulado';
+  if (car.vence < todayCL()) return 'vencido';
+  return 'abierto';
+}
+// Flete del carrito: el fijado en el panel; si no, la tarifa de la comuna (0 si todo trae flete incluido). null = sin tarifa.
+function fleteCarrito(car: Carrito, comuna: string, transporte: Transporte) {
+  if (car.flete != null) return Number(car.flete);
+  const items = car.items as Array<{ id: string; manual?: boolean }>;
+  if (items.length && items.every((i) => !i.manual && (transporte.sinFlete || []).includes(i.id))) return 0;
+  const t = transporte.comunas.find((c) => c.nombre === comuna);
+  return t ? Math.round(Number(t.valor)) : null;
+}
+
+// Página pedido.html: lo necesario para mostrar el carrito y prellenar el formulario (sin notas internas)
+async function carritoPublico(req: Request, url: URL) {
+  const car = await leerCarrito(url.searchParams.get('c'));
+  if (!car) return json(req, { error: 'carrito_no_encontrado' }, 404);
+  const { transporte, ajustes, filas } = await cargarSitio();
+  // deno-lint-ignore no-explicit-any
+  const cat = new Map<string, any>(filas.activos.map((p: any) => [p.id, p]));
+  if (!car.visto_en) await db.from('carritos').update({ visto_en: new Date().toISOString() }).eq('id', car.id);
+  const estado = estadoCarrito(car);
+  return json(req, {
+    estado, fecha: car.fecha, vence: car.vence, comuna: car.comuna, descuento: car.descuento || 0, mensaje: car.mensaje,
+    flete: car.comuna ? fleteCarrito(car, car.comuna, transporte) : (car.flete ?? null),
+    flete_fijo: car.flete != null,
+    solo_sin_flete: fleteCarrito({ ...car, flete: null }, '', transporte) === 0,
+    items: (car.items as Array<{ id: string; nombre: string; qty: number; precio: number; manual?: boolean }>).map((i) => {
+      const p = i.manual ? null : cat.get(i.id);
+      return { nombre: i.nombre, qty: i.qty, precio: i.precio, tamano: p?.tamano || '', img: p?.imagenes?.[0] || null, incluye: p?.incluye || [] };
+    }),
+    cliente: { nombre: car.cliente_nombre || '', telefono: car.cliente_telefono || '', email: car.cliente_email || '', direccion: car.direccion || '', horario: car.horario || '' },
+    comunas: transporte.comunas, abono_pct: ajustes.abono_pct, garantia_monto: ajustes.garantia_monto,
+    ...(estado === 'pagado' ? { reserva: car.reserva_codigo } : {}),
+  });
+}
+
+// Pago del abono de un carrito armado: precios, fecha y flete vienen del carrito (no del cliente)
+// deno-lint-ignore no-explicit-any
+async function crearDesdeCarrito(req: Request, body: any) {
+  const car = await leerCarrito(body.carrito);
+  if (!car) return json(req, { error: 'carrito_no_encontrado' }, 404);
+  const est = estadoCarrito(car);
+  if (est !== 'abierto') return json(req, { error: 'carrito_' + est }, 409);
+  const lc = leerCliente(body?.cliente || {}, car.comuna);
+  if (lc.error) return json(req, { error: lc.error }, 400);
+  const cliente = lc.cliente!;
+
+  const { dispo, transporte, ajustes } = await cargarSitio();
+  const pagadas = await fechasPagadas(dispo);
+  const fecha = String(car.fecha);
+  type Linea = { id: string; nombre: string; qty: number; fecha: string; precio: number; manual?: boolean };
+  const lineas = (car.items as Array<{ id: string; nombre: string; qty: number; precio: number; manual?: boolean }>).map((i): Linea => ({
+    id: i.id, nombre: i.nombre, qty: Math.max(1, Math.round(Number(i.qty) || 1)), fecha, precio: Math.max(0, Math.round(Number(i.precio) || 0)),
+    ...(i.manual ? { manual: true } : {}),
+  }));
+  if (!lineas.length) return json(req, { error: 'carrito_invalido' }, 400);
+  for (const l of lineas) {
+    if (l.manual) continue;
+    const motivo = motivoOcupado(l.id, fecha, dispo, pagadas);
+    if (motivo) return json(req, { error: 'no_disponible', id: l.id, nombre: l.nombre, fecha, motivo }, 409);
+  }
+  const flete = fleteCarrito(car, cliente.comuna, transporte);
+  if (flete == null) return json(req, { error: 'comuna_sin_tarifa' }, 400);
+  const descuento = Math.max(0, Number(car.descuento) || 0);
+  const total = lineas.reduce((s, l) => s + l.precio * l.qty, 0) + flete - descuento;
+  if (total <= 0) return json(req, { error: 'carrito_invalido' }, 400);
+  const abono = Math.max(1, Math.round(total * ajustes.abono_pct / 100));
+  const codigo = codigoNuevo();
+
+  mpToken();
+  const { data: res, error } = await db.from('reservas').insert({
+    codigo, items: lineas, fechas: [fecha], total, abono, flete, descuento, garantia_monto: ajustes.garantia_monto,
+    cliente_nombre: cliente.nombre, cliente_telefono: cliente.telefono, cliente_email: cliente.email, cliente_rut: cliente.rut || null,
+    comuna: cliente.comuna, direccion: cliente.direccion, horario: cliente.horario || null, notas: cliente.notas || null,
+    notas_internas: car.notas_internas || null, carrito_token: car.token,
+    historial: [{ t: new Date().toISOString(), por: car.creado_por || 'Panel', txt: `Reserva desde carrito armado en el panel (${car.token})` }],
+  }).select('id').single();
+  if (error) throw error;
+  await db.from('carritos').update({ reserva_codigo: codigo }).eq('id', car.id);
+  const init_point = await cobroAbono({ id: res.id, codigo, fechas: [fecha], comuna: cliente.comuna, lineas, flete, abono, pct: ajustes.abono_pct, nombre: cliente.nombre, email: cliente.email });
+  return json(req, { codigo, total, abono, flete, init_point });
 }
 
 async function webhook(req: Request, url: URL) {
@@ -661,6 +783,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET' && ruta === 'estado') return await estado(req, url);
     if (req.method === 'GET' && ruta === 'disponibilidad') return await disponibilidad(req);
     if (req.method === 'GET' && ruta === 'datos.js') return await datosJs(req);
+    if (req.method === 'GET' && ruta === 'carrito') return await carritoPublico(req, url);
     if (req.method === 'POST' && ruta === 'confirmar') return await confirmar(req);
     if (req.method === 'POST' && ruta === 'saldo') return await saldo(req);
     if (req.method === 'GET' && ruta === 'modo') {

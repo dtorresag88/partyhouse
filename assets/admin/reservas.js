@@ -202,7 +202,7 @@
       return lista;
     };
     A.render(`<div class="page">
-      ${A.head({ title: "Reservas", actions: `<button class="btn" id="r-equipo">👷 Enviar al equipo</button><button class="btn" id="r-print">🖨️ Imprimir hojas</button><button class="btn" id="r-csv">Exportar</button><a class="btn btn-orange" href="#/reservas/nueva">＋ Crear reserva</a>` })}
+      ${A.head({ title: "Reservas", actions: `<a class="btn" href="#/carritos/nuevo">🛒 Enviar carrito</a><button class="btn" id="r-equipo">👷 Enviar al equipo</button><button class="btn" id="r-print">🖨️ Imprimir hojas</button><button class="btn" id="r-csv">Exportar</button><a class="btn btn-orange" href="#/reservas/nueva">＋ Crear reserva</a>` })}
       <div class="card flush">
         <div class="tabs" id="r-tabs">${TABS.map(([k, l]) => `<button data-tab="${k}">${l}<span class="c"></span></button>`).join("")}</div>
         <div class="toolbar"><div class="grow"><input id="r-q" type="search" placeholder="Buscar por código, cliente, teléfono, comuna o producto" value="${esc(st.q)}"></div></div>

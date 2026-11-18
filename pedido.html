@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Tu pedido — Party House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/site.css" />
+<style>
+  .checkout{padding:40px 0 96px}
+  .co-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:32px;align-items:start}
+  @media (max-width:1024px){.co-grid{grid-template-columns:1fr}.summary{position:static!important;order:-1}}
+  .co-section{border:1px solid var(--line);border-radius:18px;padding:26px;background:var(--card);margin-bottom:18px}
+  .co-section h3{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em;margin:0 0 6px;line-height:1;display:flex;align-items:center;gap:12px}
+  .co-section h3 .n{font-family:"JetBrains Mono";font-size:13px;color:var(--acid);border:1px solid var(--acid);width:28px;height:28px;border-radius:50%;display:grid;place-items:center}
+  .co-hint{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.05em;margin:0 0 20px;padding-left:40px}
+  .nota-admin{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border:1px solid var(--acid);border-radius:14px;background:rgba(232,255,58,0.06);font-size:14px;color:var(--ink);line-height:1.55;margin-bottom:18px;white-space:pre-wrap}
+  .nota-admin .ico{font-size:22px;line-height:1}
+  .fijo{background:var(--bg-2);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;font-size:15px}
+  .btn-mp{background:#009ee3;color:#fff}
+  .btn-mp:hover{background:#0089c7}
+  .btn-mp:disabled{opacity:.7;cursor:wait;transform:none}
+  .btn-wa{background:#25D366!important;color:#0a3d1c!important}
+  .mp-secure{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.04em;text-align:center;margin-top:12px;line-height:1.5}
+  .summary{position:sticky;top:120px;border:1px solid var(--line);border-radius:20px;padding:28px;background:var(--card)}
+  .summary h3{font-family:"Archivo Black";font-size:22px;letter-spacing:-0.01em;margin:0 0 6px;line-height:1}
+  .sum-fecha{font-family:"JetBrains Mono";font-size:12px;color:var(--acid);letter-spacing:0.05em;margin:0 0 18px;text-transform:capitalize}
+  .sum-items{display:flex;flex-direction:column;gap:12px;padding-bottom:18px;border-bottom:1px dashed var(--line);margin-bottom:18px}
+  .sum-item{display:flex;gap:12px;align-items:center;font-size:13px}
+  .sum-item-img{width:46px;height:46px;border-radius:8px;overflow:hidden;flex-shrink:0;background:var(--bg-2);display:grid;place-items:center;font-size:20px}
+  .sum-item-img img{width:100%;height:100%;object-fit:cover}
+  .sum-item-info{flex:1;min-width:0}
+  .sum-item-name{font-weight:600;line-height:1.2}
+  .sum-item-meta{font-family:"JetBrains Mono";font-size:10px;color:var(--ink-dim);letter-spacing:0.05em;margin-top:2px}
+  .sum-item-price{font-family:"Archivo Black";font-size:14px;color:var(--acid);white-space:nowrap}
+  .summary-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px;color:var(--ink-dim)}
+  .summary-row strong{color:var(--ink);font-weight:500;text-align:right}
+  .summary-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .summary-total .lbl{font-family:"JetBrains Mono";font-size:11px;color:var(--ink-dim);letter-spacing:0.15em;text-transform:uppercase}
+  .summary-total .val{font-family:"Archivo Black";font-size:24px;color:var(--acid);letter-spacing:-0.02em}
+  .summary-abono{background:var(--magenta);color:#000;padding:12px 14px;border-radius:12px;margin:14px 0;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .summary-abono .lbl{font-family:"JetBrains Mono";font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:700}
+  .summary-abono .val{font-family:"Archivo Black";font-size:18px;letter-spacing:-0.01em}
+  .estado-card{padding:72px 24px;text-align:center;border:1px dashed var(--line);border-radius:24px}
+  .estado-card h2{font-family:"Archivo Black";font-size:36px;margin:0 0 12px;line-height:1.05}
+  .estado-card p{color:var(--ink-dim);max-width:520px;margin:0 auto 24px;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div id="nav-slot"></div>
+
+<section class="page-head">
+  <div class="page-head-bg">PEDIDO</div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="crumb"><a href="index.html">Home</a> / Tu pedido</div>
+    <h1>Tu pedido está <span class="ital acid">listo.</span></h1>
+    <p class="lead">Lo armamos según lo que conversamos. Completa tus datos y paga el abono para dejar tu fecha reservada.</p>
+  </div>
+</section>
+
+<section class="checkout">
+  <div class="wrap"><div id="pd-root"><div class="estado-card"><p>Cargando tu pedido…</p></div></div></div>
+</section>
+
+<div id="footer-slot"></div>
+<div id="wa-slot"></div>
+
+<script src="https://uxhbzgkgiefjggxcapdq.supabase.co/functions/v1/pagos/datos.js"></script>
+<script>/* respaldo si el servidor no responde */ window.PH_PRODUCTS || document.write('<script src="assets/data.js"><\/script><script src="assets/disponibilidad.js"><\/script><script src="assets/transporte.js"><\/script>');</script>
+<script src="assets/partials.js"></script>
+<script src="assets/site.js"></script>
+<script>
+  PH_mountChrome({active:''});
+
+  const token = (new URLSearchParams(location.search).get('c') || '').trim();
+  const root = document.getElementById('pd-root');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const clp = n => PH.formatCLP(n);
+  const fechaLarga = f => new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  function PH_rut(v){
+    const s = String(v || '').toUpperCase().replace(/[^0-9K]/g, '');
+    if(s.length < 2 || s.length > 9) return '';
+    const cuerpo = s.slice(0, -1), dv = s.slice(-1);
+    if(!/^\d+$/.test(cuerpo)) return '';
+    let suma = 0, m = 2;
+    for(let i = cuerpo.length - 1; i >= 0; i--){ suma += +cuerpo[i] * m; m = m === 7 ? 2 : m + 1; }
+    const r = 11 - (suma % 11), esperado = r === 11 ? '0' : r === 10 ? 'K' : String(r);
+    return dv === esperado ? cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv : '';
+  }
+  document.addEventListener('focusout', e => {
+    if(e.target.name === 'rut' && PH_rut(e.target.value)) e.target.value = PH_rut(e.target.value);
+  });
+
+  function estado(titulo, texto, botones){
+    root.innerHTML = `<div class="estado-card"><h2>${titulo}</h2><p>${texto}</p>${botones || ''}</div>`;
+  }
+  const btnWA = (txt, msg) => `<a class="btn btn-wa" href="${PH.waLink(msg)}" target="_blank" rel="noopener">${txt}</a>`;
+
+  async function cargar(){
+    if(!/^[A-Za-z0-9]{8,24}$/.test(token)) return estado('Link incompleto', 'Revisa que hayas abierto el link completo que te enviamos por WhatsApp.', btnWA('Escríbenos por WhatsApp →', '¡Hola Party House! No pude abrir el link de mi pedido.'));
+    let d;
+    try {
+      const r = await fetch(PH.PAGOS_URL + '/carrito?c=' + encodeURIComponent(token));
+      d = await r.json();
+      if(!r.ok) throw d;
+    } catch(e){
+      return estado('No encontramos tu pedido', 'Puede que el link esté incompleto. Escríbenos y te lo enviamos de nuevo.', btnWA('Escríbenos por WhatsApp →', '¡Hola Party House! No pude abrir el link de mi pedido (' + token + ').'));
+    }
+    if(d.estado === 'pagado') return estado('¡Este pedido ya está <span class="ital acid">pagado!</span> 🎉', 'Tu reserva ' + esc(d.reserva || '') + ' está confirmada. Te enviamos el detalle por correo.', '<a class="btn btn-primary" href="index.html">Ir al inicio →</a>');
+    if(d.estado === 'vencido') return estado('Este link venció', 'Los pedidos armados se mantienen por unos días. Escríbenos y revisamos la disponibilidad para tu fecha.', btnWA('Pedir un link nuevo por WhatsApp →', '¡Hola Party House! Mi link de pedido venció (' + token + '). ¿Me envían uno nuevo?'));
+    if(d.estado === 'anulado') return estado('Este pedido ya no está disponible', 'Escríbenos por WhatsApp y lo revisamos contigo.', btnWA('Escríbenos por WhatsApp →', '¡Hola Party House! Tengo una consulta sobre mi pedido (' + token + ').'));
+    pintar(d);
+  }
+
+  function pintar(d){
+    const sub = d.items.reduce((s, i) => s + i.precio * i.qty, 0);
+    const pct = d.abono_pct || 50;
+    const comunaFija = !!d.comuna;
+    const fleteDe = comuna => {
+      if(comunaFija || d.flete_fijo) return d.flete;
+      if(d.solo_sin_flete) return 0;
+      const c = d.comunas.find(x => x.nombre === comuna);
+      return c ? c.valor : null;
+    };
+    const totales = comuna => {
+      const flete = fleteDe(comuna);
+      const total = Math.max(sub + (flete || 0) - (d.descuento || 0), 0);
+      const abono = Math.round(total * pct / 100);
+      return { flete, total, abono, saldo: total - abono };
+    };
+    const c = d.cliente || {};
+    const t = totales(d.comuna || '');
+    const items = d.items.map(i => `
+      <div class="sum-item">
+        <div class="sum-item-img">${i.img ? `<img src="${esc(i.img)}" alt="" loading="lazy">` : '🎉'}</div>
+        <div class="sum-item-info"><div class="sum-item-name">${esc(i.nombre)}</div><div class="sum-item-meta">${i.tamano ? esc(i.tamano) + ' · ' : ''}x${i.qty}</div></div>
+        <div class="sum-item-price">${clp(i.precio * i.qty)}</div>
+      </div>`).join('');
+    const comunaCampo = comunaFija
+      ? `<div class="fijo">${esc(d.comuna)}</div><input type="hidden" name="comuna" value="${esc(d.comuna)}">`
+      : `<select name="comuna" required><option value="">Selecciona...</option>${d.comunas.map(x => `<option value="${esc(x.nombre)}">${esc(x.nombre)}${d.flete_fijo || d.solo_sin_flete ? '' : ' · flete ' + clp(x.valor)}</option>`).join('')}<option value="__otra">Otra comuna</option></select><span class="err-msg">Selecciona la comuna</span>`;
+
+    root.innerHTML = `
+      <div class="co-grid">
+        <form id="pd-form" novalidate>
+          ${d.mensaje ? `<div class="nota-admin"><span class="ico">💬</span><div>${esc(d.mensaje)}</div></div>` : ''}
+          <div class="co-section">
+            <h3><span class="n">1</span> Tus datos</h3>
+            <p class="co-hint">// Para la boleta, la confirmación y coordinar la instalación</p>
+            <div class="form-row">
+              <div class="form-field"><label>Nombre completo</label><input type="text" name="name" required minlength="2" value="${esc(c.nombre)}" placeholder="Tu nombre" /><span class="err-msg">Ingresa tu nombre</span></div>
+              <div class="form-field"><label>Teléfono</label><input type="tel" name="phone" required value="${esc(c.telefono)}" placeholder="+56 9 ..." /><span class="err-msg">Teléfono inválido</span></div>
+            </div>
+            <div class="form-row">
+              <div class="form-field"><label>Email</label><input type="email" name="email" required value="${esc(c.email)}" placeholder="tu@email.com" /><span class="err-msg">Email inválido</span></div>
+              <div class="form-field"><label>RUT (opcional)</label><input type="text" name="rut" maxlength="12" placeholder="12.345.678-9" /><span class="err-msg">RUT inválido</span></div>
+            </div>
+          </div>
+          <div class="co-section">
+            <h3><span class="n">2</span> Lugar del evento</h3>
+            <p class="co-hint">// ${esc(fechaLarga(d.fecha))}</p>
+            <div class="form-row">
+              <div class="form-field"><label>Dirección del evento</label><input type="text" name="direccion" required minlength="5" autocomplete="street-address" value="${esc(c.direccion)}" placeholder="Calle, número, casa o depto" /><span class="err-msg">Ingresa la dirección donde instalamos</span></div>
+              <div class="form-field"><label>Comuna</label>${comunaCampo}</div>
+            </div>
+            <div class="form-field"><label>Horario de instalación (opcional)</label><input type="text" name="horario" value="${esc(c.horario)}" placeholder="Ej: 15:00" /></div>
+            <div class="form-field"><label>Comentarios (opcional)</label><textarea name="notes" placeholder="Accesos, estacionamiento, condominio, alguna instrucción..."></textarea></div>
+          </div>
+          <button type="submit" class="btn btn-mp btn-block" id="pd-pagar" style="padding:18px;font-size:16px"><span>Pagar abono <span data-v="abono">${clp(t.abono)}</span> con Mercado Pago →</span></button>
+          <div class="mp-secure">🔒 Pago seguro procesado por Mercado Pago. No guardamos los datos de tu tarjeta.<br>El saldo (<span data-v="saldo">${clp(t.saldo)}</span>) se paga el día del evento, antes de la instalación.</div>
+          <a class="btn btn-ghost btn-block" id="pd-wa" style="margin-top:12px" target="_blank" rel="noopener">¿Dudas? Escríbenos por WhatsApp</a>
+        </form>
+
+        <aside class="summary">
+          <h3>Tu pedido</h3>
+          <p class="sum-fecha">📅 ${esc(fechaLarga(d.fecha))}</p>
+          <div class="sum-items">${items}</div>
+          <div class="summary-row"><span>Productos</span><strong>${clp(sub)}</strong></div>
+          <div class="summary-row"><span>Flete y montaje${comunaFija ? ' (' + esc(d.comuna) + ')' : ''}</span><strong data-v="flete"></strong></div>
+          ${d.descuento ? `<div class="summary-row"><span>Descuento</span><strong>-${clp(d.descuento)}</strong></div>` : ''}
+          <div class="summary-total"><div class="lbl">// TOTAL</div><div class="val" data-v="total">${clp(t.total)}</div></div>
+          <div class="summary-abono"><div class="lbl">Abono para reservar (${pct}%)</div><div class="val" data-v="abono">${clp(t.abono)}</div></div>
+          <div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:12px;line-height:1.45;color:var(--ink-dim)">🛡️ <strong style="color:var(--ink)">Garantía reembolsable de ${clp(d.garantia_monto || 100000)}</strong>: no se paga ahora. Te la pedimos por correo una semana antes del evento y te la devolvemos tras el retiro.</div>
+        </aside>
+      </div>`;
+
+    const form = document.getElementById('pd-form');
+    const get = n => (form.querySelector('[name="' + n + '"]').value || '').trim();
+    const set = (k, v) => root.querySelectorAll('[data-v="' + k + '"]').forEach(el => el.textContent = v);
+    const btn = document.getElementById('pd-pagar');
+    const actualizar = () => {
+      const comuna = get('comuna');
+      const r = totales(comuna);
+      set('flete', r.flete === null ? (comuna === '__otra' ? 'Por cotizar' : 'Elige tu comuna') : r.flete === 0 ? 'Incluido' : clp(r.flete));
+      set('total', clp(r.total) + (r.flete === null ? ' + flete' : ''));
+      set('abono', clp(r.abono)); set('saldo', clp(r.saldo));
+      btn.disabled = comuna === '__otra';
+      document.getElementById('pd-wa').href = PH.waLink('¡Hola Party House! Tengo una consulta sobre mi pedido para el ' + fechaLarga(d.fecha) + ' (' + token + ')' + (comuna === '__otra' ? '. Mi comuna no está en la lista.' : '.'));
+    };
+    if(!comunaFija) form.querySelector('[name=comuna]').addEventListener('change', actualizar);
+    actualizar();
+
+    // Sin pago online activo: se ofrece WhatsApp
+    PH.pagoOnlineActivo().then(on => {
+      if(on) return;
+      btn.style.display = 'none';
+      root.querySelector('.mp-secure').style.display = 'none';
+      const wa = document.getElementById('pd-wa');
+      wa.className = 'btn btn-wa btn-block'; wa.textContent = 'Confirmar mi pedido por WhatsApp →';
+    });
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      if(!validar(form)){ PH.toast('Revisa los campos marcados', 'error'); return; }
+      const label = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = 'Conectando con Mercado Pago…';
+      try {
+        const r = await fetch(PH.PAGOS_URL + '/crear', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ carrito: token, cliente: { name: get('name'), phone: get('phone'), email: get('email'), comuna: get('comuna'), direccion: get('direccion'), horario: get('horario'), rut: PH_rut(get('rut')), notes: get('notes') } })
+        });
+        const data = await r.json().catch(() => ({}));
+        if(!r.ok || !data.init_point) throw data;
+        try { localStorage.setItem('ph_pago', JSON.stringify({ codigo: data.codigo, nombre: get('name'), t: Date.now() })); } catch(_){}
+        PH.track('pago_mp_iniciado', { total: data.total, origen: 'carrito' });
+        location.href = data.init_point;
+      } catch(err){
+        btn.disabled = false; btn.innerHTML = label;
+        const x = err || {};
+        const msgs = {
+          no_disponible: (x.nombre || 'Un producto') + ' ya no está disponible para esa fecha. Escríbenos por WhatsApp.',
+          carrito_pagado: 'Este pedido ya fue pagado.', carrito_vencido: 'Este link venció. Escríbenos y te enviamos uno nuevo.',
+          carrito_anulado: 'Este pedido ya no está disponible.', pagos_no_configurados: 'El pago online no está activo. Escríbenos por WhatsApp 🙌',
+          datos_cliente_invalidos: 'Revisa tus datos de contacto.', falta_direccion: 'Ingresa la dirección del evento.',
+          rut_invalido: 'Revisa el RUT (o déjalo en blanco).', comuna_sin_tarifa: 'Para esa comuna te cotizamos el flete por WhatsApp 🙌'
+        };
+        PH.toast(msgs[x.error] || 'No pudimos conectar con Mercado Pago. Intenta de nuevo o escríbenos por WhatsApp.', 'error');
+        if(/^carrito_/.test(x.error || '')) setTimeout(cargar, 1500);
+      }
+    });
+  }
+
+  function validar(form){
+    let ok = true;
+    form.querySelectorAll('.form-field').forEach(w => {
+      w.classList.remove('error');
+      const f = w.querySelector('input:not([type=hidden]), textarea, select');
+      if(!f) return;
+      const v = (f.value || '').trim();
+      const mal = (f.name === 'name' && v.length < 2) || (f.name === 'phone' && !/^[\d\s+()-]{7,}$/.test(v)) ||
+        (f.name === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) || (f.name === 'comuna' && (!v || v === '__otra')) ||
+        (f.name === 'direccion' && v.length < 5) || (f.name === 'rut' && v && !PH_rut(v));
+      if(mal){ w.classList.add('error'); ok = false; }
+    });
+    return ok;
+  }
+
+  cargar();
+</script>
+</body>
+</html>

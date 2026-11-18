@@ -21,6 +21,7 @@ Arriendo de carpas disco inflables, mobiliario LED, audio y juegos para fiestas 
 - Reserva manual: RPC `admin_crear_reserva(p jsonb)` (valida disponibilidad y equipo compartido; `forzar` la ignora).
 - Confirmación por correo desde el panel: `POST pagos/confirmar` con el JWT del admin.
 - Fotos: bucket público `productos`.
+- Carritos armados (`assets/admin/carritos.js`, tabla `carritos`, solo admins): link `pedido.html?c=TOKEN`. La función expone `GET pagos/carrito` (sin notas internas) y `POST pagos/crear {carrito, cliente}` usa precios/fecha/flete del carrito (solo revisa ocupación, no anticipación). Al pagarse, `aplicarPago` marca el carrito `pagado` vía `reservas.carrito_token`.
 
 ## Reglas de negocio
 - Total = productos + flete − descuento; abono = `ajustes.abono_pct` % del total; saldo el día del evento.
